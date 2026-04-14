@@ -172,8 +172,11 @@ function buildActionCell(d) {
     </div>`;
   }
   if (et === 'ARRIVED') {
+    const late    = _computeIsLate(driver, driver.clicked_at ? new Date(driver.clicked_at) : null);
+    const lateTag = late ? `<span class="ofensor-tag ofensor-driver">Atrasado</span>` : '';
     return `<div class="action-group">
       <span class="badge badge-arrived">✓ Chegou</span>
+      ${lateTag}
       <button class="btn-undo" data-action="undo" data-idx="${idx}">desfazer</button>
     </div>`;
   }
@@ -194,10 +197,29 @@ function buildActionCell(d) {
   return '—';
 }
 
+// ─── Lógica de atraso ─────────────────────────────────────────────────────────
+function _computeIsLate(driver, atTime = null) {
+  const etaDate = driver.data_eta;
+  const etaTime = driver.horario_chegada || driver.eta_planejado_operacao;
+  if (!etaDate || !etaTime) return false;
+  try {
+    const eta = new Date(`${etaDate}T${etaTime}`);
+    const t   = atTime || new Date();
+    return !isNaN(eta.getTime()) && t > eta;
+  } catch { return false; }
+}
+
 // ─── Eventos ──────────────────────────────────────────────────────────────────
 async function markArrived(driver) {
-  const ok = await postEvent(String(driver.driver_id), 'ARRIVED', driver.horario_chegada, driver.data_eta);
-  if (ok) { driver.event_type = 'ARRIVED'; refresh(); }
+  const late     = _computeIsLate(driver);          // compara ETA com agora (timezone local)
+  const offender = late ? 'DRIVER' : null;
+  const ok = await postEvent(String(driver.driver_id), 'ARRIVED',
+                             driver.horario_chegada, driver.data_eta, offender);
+  if (ok) {
+    driver.event_type = 'ARRIVED';
+    driver.clicked_at = new Date().toISOString();
+    refresh();
+  }
 }
 
 async function markNotArrived(driver) {
@@ -209,7 +231,9 @@ async function markNotArrived(driver) {
     );
     if (!ok) return;
   }
-  const posted = await postEvent(String(driver.driver_id), eventType, driver.horario_chegada, driver.data_eta);
+  const offender = eventType === 'NOT_USED_INCORRETO' ? 'DRIVER' : 'OPERATION';
+  const posted = await postEvent(String(driver.driver_id), eventType,
+                                 driver.horario_chegada, driver.data_eta, offender);
   if (posted) { driver.event_type = eventType; refresh(); }
 }
 
@@ -229,7 +253,7 @@ async function undoEvent(driver) {
   }
 }
 
-async function postEvent(driverId, eventType, etaTime, etaDate) {
+async function postEvent(driverId, eventType, etaTime, etaDate, offender = null) {
   try {
     const res = await fetch('/event', {
       method:  'POST',
@@ -239,8 +263,9 @@ async function postEvent(driverId, eventType, etaTime, etaDate) {
         driver_id:  String(driverId),
         event_type: eventType,
         email:      userEmail,
-        eta_time:   etaTime || null,
-        eta_date:   etaDate || null
+        eta_time:   etaTime  || null,
+        eta_date:   etaDate  || null,
+        offender:   offender
       })
     });
     return res.ok;

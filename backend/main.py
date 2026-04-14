@@ -61,6 +61,7 @@ class EventRequest(BaseModel):
     email:      str = ""
     eta_time:   str | None = None
     eta_date:   str | None = None
+    offender:   str | None = None  # DRIVER | OPERATION | None
 
 class UndoRequest(BaseModel):
     facility:  str
@@ -117,12 +118,13 @@ def record_event(req: EventRequest):
         raise HTTPException(status_code=400, detail=f"event_type inválido. Valores aceitos: {valid}")
     result = db.upsert_event(
         req.facility, req.driver_id, req.email,
-        req.event_type, req.eta_time, req.eta_date
+        req.event_type, req.eta_time, req.eta_date,
+        req.offender
     )
     bq.write_bq_event(
         req.facility, req.driver_id, req.email,
         req.event_type, req.eta_time, req.eta_date,
-        result["clicked_at"]
+        result["clicked_at"], req.offender
     )
     return result
 

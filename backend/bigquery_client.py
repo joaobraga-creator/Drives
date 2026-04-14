@@ -221,15 +221,18 @@ def ensure_events_table():
 
 
 def write_bq_event(facility: str, driver_id: str, email: str,
-                   event_type: str, eta_time, eta_date, clicked_at: str):
+                   event_type: str, eta_time, eta_date, clicked_at: str,
+                   offender: str | None = None):
     """Insere evento na tabela BigQuery (streaming insert)."""
     try:
-        client   = _get_client()
-        offender = (
-            "DRIVER"    if event_type == "NOT_USED_INCORRETO" else
-            "OPERATION" if event_type == "NOT_USED_CORRETO"   else
-            None
-        )
+        client = _get_client()
+        # Usa offender vindo do frontend (que tem timezone correta) se disponível
+        if offender is None:
+            offender = (
+                "DRIVER"    if event_type == "NOT_USED_INCORRETO" else
+                "OPERATION" if event_type == "NOT_USED_CORRETO"   else
+                None
+            )
         row = {
             "facility":   facility.upper(),
             "driver_id":  str(driver_id),

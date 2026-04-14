@@ -22,26 +22,33 @@ def init_db():
                 event_type  TEXT    NOT NULL,
                 eta_time    TEXT,
                 eta_date    TEXT,
-                clicked_at  TEXT    NOT NULL
+                clicked_at  TEXT    NOT NULL,
+                offender    TEXT
             )
         """)
+        try:
+            conn.execute("ALTER TABLE events ADD COLUMN offender TEXT")
+        except Exception:
+            pass  # coluna já existe
         conn.commit()
 
 
 def upsert_event(facility: str, driver_id: str, email: str,
-                 event_type: str, eta_time: str | None, eta_date: str | None) -> dict:
+                 event_type: str, eta_time: str | None, eta_date: str | None,
+                 offender: str | None = None) -> dict:
     clicked_at = datetime.now(timezone.utc).isoformat()
     fac = facility.upper()
     did = str(driver_id)
     with _conn() as conn:
         conn.execute("DELETE FROM events WHERE facility=? AND driver_id=?", (fac, did))
         conn.execute(
-            "INSERT INTO events (facility, driver_id, email, event_type, eta_time, eta_date, clicked_at)"
-            " VALUES (?,?,?,?,?,?,?)",
-            (fac, did, email, event_type, eta_time, eta_date, clicked_at)
+            "INSERT INTO events (facility, driver_id, email, event_type, eta_time, eta_date, clicked_at, offender)"
+            " VALUES (?,?,?,?,?,?,?,?)",
+            (fac, did, email, event_type, eta_time, eta_date, clicked_at, offender)
         )
         conn.commit()
-    return {"facility": fac, "driver_id": did, "event_type": event_type, "clicked_at": clicked_at}
+    return {"facility": fac, "driver_id": did, "event_type": event_type,
+            "clicked_at": clicked_at, "offender": offender}
 
 
 def delete_event(facility: str, driver_id: str) -> bool:
@@ -85,8 +92,8 @@ def restore_event(ev: dict):
         if existing:
             return  # SQLite já tem dado mais recente da sessão atual
         conn.execute(
-            "INSERT INTO events (facility, driver_id, email, event_type, eta_time, eta_date, clicked_at)"
-            " VALUES (?,?,?,?,?,?,?)",
+            "INSERT INTO events (facility, driver_id, email, event_type, eta_time, eta_date, clicked_at, offender)"
+            " VALUES (?,?,?,?,?,?,?,?)",
             (
                 fac, did,
                 ev.get("email", ""),
@@ -94,6 +101,7 @@ def restore_event(ev: dict):
                 ev.get("eta_time"),
                 ev.get("eta_date"),
                 str(ev.get("clicked_at", "")),
+                ev.get("offender"),
             )
         )
         conn.commit()
