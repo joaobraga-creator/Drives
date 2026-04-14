@@ -1,39 +1,35 @@
 import os
-import json
-import tempfile
 import google.auth
+from google.oauth2.credentials import Credentials
 from google.cloud import bigquery
 from dotenv import load_dotenv
 
-import logging
 load_dotenv()
-
-# Suporte a credenciais via env var (Render / produção)
-# Em local usa ADC normalmente; em produção recebe o JSON pelo env var.
-_creds_json = os.getenv("GOOGLE_CREDENTIALS_JSON")
-if _creds_json:
-    if not os.getenv("GOOGLE_APPLICATION_CREDENTIALS"):
-        _tmp = tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False)
-        _tmp.write(_creds_json)
-        _tmp.close()
-        os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = _tmp.name
-else:
-    logging.warning("[BQ] GOOGLE_CREDENTIALS_JSON not found — using local ADC")
 
 _client = None
 
 def _get_client() -> bigquery.Client:
-    """
-    Usa Application Default Credentials (ADC) — mesmo padrão do Pipeline.
-    Configure com: gcloud auth application-default login
-    O quota project precisa ser um projeto GCP com billing habilitado
-    que tenha permissão de leitura nos datasets meli-bi-data / SBOX_MLBPLACES.
-    """
     global _client
     if _client is None:
         quota_project = os.getenv("GOOGLE_CLOUD_QUOTA_PROJECT", "calm-mariner-105612")
-        credentials, _ = google.auth.default()
-        # Aplica quota project para acessar datasets internos Meli
+
+        client_id     = os.getenv("GOOGLE_CLIENT_ID")
+        client_secret = os.getenv("GOOGLE_CLIENT_SECRET")
+        refresh_token = os.getenv("GOOGLE_REFRESH_TOKEN")
+
+        if client_id and client_secret and refresh_token:
+            # Produção: monta credenciais diretamente das env vars
+            credentials = Credentials(
+                token=None,
+                refresh_token=refresh_token,
+                token_uri="https://oauth2.googleapis.com/token",
+                client_id=client_id,
+                client_secret=client_secret,
+            )
+        else:
+            # Local: usa ADC (gcloud auth application-default login)
+            credentials, _ = google.auth.default()
+
         credentials = credentials.with_quota_project(quota_project)
         _client = bigquery.Client(credentials=credentials, project=quota_project)
     return _client
