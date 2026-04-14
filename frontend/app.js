@@ -172,7 +172,7 @@ function buildActionCell(d) {
     </div>`;
   }
   if (et === 'ARRIVED') {
-    const late    = _computeIsLate(driver, driver.clicked_at ? new Date(driver.clicked_at) : null);
+    const late    = _computeIsLate(d, d.clicked_at ? new Date(d.clicked_at) : null);
     const lateTag = late ? `<span class="ofensor-tag ofensor-driver">Atrasado</span>` : '';
     return `<div class="action-group">
       <span class="badge badge-arrived">✓ Chegou</span>
