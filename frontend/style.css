@@ -452,6 +452,10 @@ td {
 .badge-nuc     { background: var(--surface2); color: var(--text2); border: 1px solid var(--border2); }
 .badge-nui     { background: var(--orange-bg); color: var(--orange); border: 1px solid var(--orange-border); }
 
+.ofensor-tag    { font-size: 10px; font-weight: 600; padding: 1px 5px; border-radius: 4px; white-space: nowrap; }
+.ofensor-driver { background: #fef3c7; color: #92400e; border: 1px solid #fbbf24; }
+.ofensor-op     { background: #ede9fe; color: #5b21b6; border: 1px solid #a78bfa; }
+
 /* ── Status dots ────────────────────────────────────────────────────────────── */
 .status-dot {
   display: inline-block;

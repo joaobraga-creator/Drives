@@ -28,6 +28,17 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  // Event delegation — evita bugs de onclick inline com re-render do DOM
+  document.getElementById('table-body').addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-action]');
+    if (!btn) return;
+    const driverId = btn.dataset.driverId;
+    const action   = btn.dataset.action;
+    if (action === 'arrived')     markArrived(driverId);
+    else if (action === 'not-arrived') markNotArrived(driverId);
+    else if (action === 'undo')   undoEvent(driverId);
+  });
+
   loadDrivers();
 });
 
@@ -149,37 +160,48 @@ function buildRow(d, num) {
 }
 
 function buildActionCell(d, driverId) {
-  const et = d.event_type;
+  const et  = d.event_type;
+  const did = escHtml(driverId);
 
   if (!et) {
     return `<div class="action-group">
-      <button class="btn-arrived"     onclick="markArrived('${driverId}')">✓ Chegou</button>
-      <button class="btn-not-arrived" onclick="markNotArrived('${driverId}')">Não chegou</button>
+      <button class="btn-arrived"     data-action="arrived"     data-driver-id="${did}">✓ Chegou</button>
+      <button class="btn-not-arrived" data-action="not-arrived" data-driver-id="${did}">Não chegou</button>
     </div>`;
   }
 
   if (et === 'ARRIVED') {
     return `<div class="action-group">
       <span class="badge badge-arrived">✓ Chegou</span>
-      <button class="btn-undo" onclick="undoEvent('${driverId}')">desfazer</button>
+      <button class="btn-undo" data-action="undo" data-driver-id="${did}">desfazer</button>
     </div>`;
   }
 
   if (et === 'NOT_USED_CORRETO') {
+    const label = ofensorLabel(d);
     return `<div class="action-group">
-      <span class="badge badge-nuc">Não chegou</span>
-      <button class="btn-undo" onclick="undoEvent('${driverId}')">desfazer</button>
+      <span class="badge badge-nuc">Não chegou</span>${label}
+      <button class="btn-undo" data-action="undo" data-driver-id="${did}">desfazer</button>
     </div>`;
   }
 
   if (et === 'NOT_USED_INCORRETO') {
+    const label = ofensorLabel(d);
     return `<div class="action-group">
-      <span class="badge badge-nui">⚠ NUI</span>
-      <button class="btn-undo" onclick="undoEvent('${driverId}')">desfazer</button>
+      <span class="badge badge-nui">⚠ NUI</span>${label}
+      <button class="btn-undo" data-action="undo" data-driver-id="${did}">desfazer</button>
     </div>`;
   }
 
   return '—';
+}
+
+function ofensorLabel(d) {
+  const et = d.event_type;
+  if (!et || et === 'ARRIVED') return '';
+  const ofensor = et === 'NOT_USED_INCORRETO' ? 'Driver' : 'Operação';
+  const cls     = et === 'NOT_USED_INCORRETO' ? 'ofensor-driver' : 'ofensor-op';
+  return `<span class="ofensor-tag ${cls}">${ofensor}</span>`;
 }
 
 // ─── Eventos ──────────────────────────────────────────────────────────────────
