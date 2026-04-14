@@ -32,11 +32,13 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('table-body').addEventListener('click', (e) => {
     const btn = e.target.closest('[data-action]');
     if (!btn) return;
-    const driverId = btn.dataset.driverId;
-    const action   = btn.dataset.action;
-    if (action === 'arrived')     markArrived(driverId);
-    else if (action === 'not-arrived') markNotArrived(driverId);
-    else if (action === 'undo')   undoEvent(driverId);
+    const idx    = parseInt(btn.dataset.idx);
+    const action = btn.dataset.action;
+    const driver = allDrivers[idx];
+    if (!driver) return;
+    if (action === 'arrived')          markArrived(driver);
+    else if (action === 'not-arrived') markNotArrived(driver);
+    else if (action === 'undo')        undoEvent(driver);
   });
 
   loadDrivers();
@@ -58,7 +60,7 @@ async function loadDrivers() {
 
     if (!res.ok) { renderError(tbody, data.detail || 'Erro ao carregar.'); return; }
 
-    allDrivers = data.drivers || [];
+    allDrivers = (data.drivers || []).map((d, i) => ({ ...d, _idx: i }));
     updateStats();
     applyFilters();
 
@@ -155,70 +157,51 @@ function buildRow(d, num) {
     <td style="font-weight:600;color:var(--blue)">${chegada}</td>
     <td class="hide-mobile">${statusToDot(statusBQ)}${escHtml(statusBQ)}</td>
     <td class="hide-mobile" style="color:var(--muted)">${svc}</td>
-    <td>${buildActionCell(d, driverId)}</td>
+    <td>${buildActionCell(d)}</td>
   </tr>`;
 }
 
-function buildActionCell(d, driverId) {
+function buildActionCell(d) {
+  const idx = d._idx;
   const et  = d.event_type;
-  const did = escHtml(driverId);
 
   if (!et) {
     return `<div class="action-group">
-      <button class="btn-arrived"     data-action="arrived"     data-driver-id="${did}">✓ Chegou</button>
-      <button class="btn-not-arrived" data-action="not-arrived" data-driver-id="${did}">Não chegou</button>
+      <button class="btn-arrived"     data-action="arrived"     data-idx="${idx}">✓ Chegou</button>
+      <button class="btn-not-arrived" data-action="not-arrived" data-idx="${idx}">Não chegou</button>
     </div>`;
   }
-
   if (et === 'ARRIVED') {
     return `<div class="action-group">
       <span class="badge badge-arrived">✓ Chegou</span>
-      <button class="btn-undo" data-action="undo" data-driver-id="${did}">desfazer</button>
+      <button class="btn-undo" data-action="undo" data-idx="${idx}">desfazer</button>
     </div>`;
   }
-
   if (et === 'NOT_USED_CORRETO') {
-    const label = ofensorLabel(d);
     return `<div class="action-group">
-      <span class="badge badge-nuc">Não chegou</span>${label}
-      <button class="btn-undo" data-action="undo" data-driver-id="${did}">desfazer</button>
+      <span class="badge badge-nuc">Não chegou</span>
+      <span class="ofensor-tag ofensor-op">Operação</span>
+      <button class="btn-undo" data-action="undo" data-idx="${idx}">desfazer</button>
     </div>`;
   }
-
   if (et === 'NOT_USED_INCORRETO') {
-    const label = ofensorLabel(d);
     return `<div class="action-group">
-      <span class="badge badge-nui">⚠ NUI</span>${label}
-      <button class="btn-undo" data-action="undo" data-driver-id="${did}">desfazer</button>
+      <span class="badge badge-nui">⚠ NUI</span>
+      <span class="ofensor-tag ofensor-driver">Driver</span>
+      <button class="btn-undo" data-action="undo" data-idx="${idx}">desfazer</button>
     </div>`;
   }
-
   return '—';
 }
 
-function ofensorLabel(d) {
-  const et = d.event_type;
-  if (!et || et === 'ARRIVED') return '';
-  const ofensor = et === 'NOT_USED_INCORRETO' ? 'Driver' : 'Operação';
-  const cls     = et === 'NOT_USED_INCORRETO' ? 'ofensor-driver' : 'ofensor-op';
-  return `<span class="ofensor-tag ${cls}">${ofensor}</span>`;
-}
-
 // ─── Eventos ──────────────────────────────────────────────────────────────────
-async function markArrived(driverId) {
-  const driver = allDrivers.find(d => String(d.driver_id) === String(driverId));
-  if (!driver) return;
-
-  const ok = await postEvent(driverId, 'ARRIVED', driver.horario_chegada, driver.data_eta);
+async function markArrived(driver) {
+  const ok = await postEvent(String(driver.driver_id), 'ARRIVED', driver.horario_chegada, driver.data_eta);
   if (ok) { driver.event_type = 'ARRIVED'; refresh(); }
 }
 
-async function markNotArrived(driverId) {
-  const driver = allDrivers.find(d => String(d.driver_id) === String(driverId));
-  if (!driver) return;
-
+async function markNotArrived(driver) {
   const eventType = computeNotUsedType(driver);
-
   if (eventType === 'NOT_USED_INCORRETO') {
     const etaStr = driver.horario_chegada || driver.eta_planejado_operacao || 'N/A';
     const ok = confirm(
@@ -226,21 +209,20 @@ async function markNotArrived(driverId) {
     );
     if (!ok) return;
   }
-
-  const posted = await postEvent(driverId, eventType, driver.horario_chegada, driver.data_eta);
+  const posted = await postEvent(String(driver.driver_id), eventType, driver.horario_chegada, driver.data_eta);
   if (posted) { driver.event_type = eventType; refresh(); }
 }
 
-async function undoEvent(driverId) {
+async function undoEvent(driver) {
   try {
     const res = await fetch('/event', {
       method:  'DELETE',
       headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ facility, driver_id: String(driverId) })
+      body:    JSON.stringify({ facility, driver_id: String(driver.driver_id), email: userEmail })
     });
     if (!res.ok) return;
-    const idx = allDrivers.findIndex(d => String(d.driver_id) === String(driverId));
-    if (idx !== -1) { allDrivers[idx].event_type = null; allDrivers[idx].clicked_at = null; }
+    driver.event_type = null;
+    driver.clicked_at = null;
     refresh();
   } catch (err) {
     console.error('Erro ao desfazer:', err);

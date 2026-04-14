@@ -71,6 +71,34 @@ def get_all_events(limit: int = 1000) -> list[dict]:
     return [dict(r) for r in rows]
 
 
+def restore_event(ev: dict):
+    """Restaura evento do BigQuery no SQLite (só se não existir registro mais recente)."""
+    fac = str(ev.get("facility", "")).upper()
+    did = str(ev.get("driver_id", ""))
+    if not fac or not did:
+        return
+    with _conn() as conn:
+        existing = conn.execute(
+            "SELECT clicked_at FROM events WHERE facility=? AND driver_id=?",
+            (fac, did)
+        ).fetchone()
+        if existing:
+            return  # SQLite já tem dado mais recente da sessão atual
+        conn.execute(
+            "INSERT INTO events (facility, driver_id, email, event_type, eta_time, eta_date, clicked_at)"
+            " VALUES (?,?,?,?,?,?,?)",
+            (
+                fac, did,
+                ev.get("email", ""),
+                ev.get("event_type", ""),
+                ev.get("eta_time"),
+                ev.get("eta_date"),
+                str(ev.get("clicked_at", "")),
+            )
+        )
+        conn.commit()
+
+
 def get_facility_summary() -> list[dict]:
     with _conn() as conn:
         rows = conn.execute("""

@@ -171,3 +171,147 @@ def get_drivers_by_facility(facility: str) -> list[dict]:
     for row in rows:
         result.append(dict(row.items()))
     return result
+
+
+# ─── Events table (persistência) ─────────────────────────────────────────────
+
+import logging as _logging
+from google.api_core.exceptions import NotFound
+
+_EVENTS_DATASET = "notused_events"
+_EVENTS_TABLE   = "events"
+
+
+def _events_table_id() -> str:
+    project = os.getenv("GOOGLE_CLOUD_QUOTA_PROJECT", "calm-mariner-105612")
+    return f"{project}.{_EVENTS_DATASET}.{_EVENTS_TABLE}"
+
+
+def ensure_events_table():
+    """Cria dataset e tabela de eventos no BigQuery se não existirem."""
+    try:
+        client  = _get_client()
+        project = os.getenv("GOOGLE_CLOUD_QUOTA_PROJECT", "calm-mariner-105612")
+        ds_ref  = f"{project}.{_EVENTS_DATASET}"
+        try:
+            client.get_dataset(ds_ref)
+        except NotFound:
+            client.create_dataset(bigquery.Dataset(ds_ref))
+            _logging.info(f"[BQ Events] Dataset criado: {ds_ref}")
+
+        tbl_id = _events_table_id()
+        try:
+            client.get_table(tbl_id)
+        except NotFound:
+            schema = [
+                bigquery.SchemaField("facility",   "STRING"),
+                bigquery.SchemaField("driver_id",  "STRING"),
+                bigquery.SchemaField("email",      "STRING"),
+                bigquery.SchemaField("event_type", "STRING"),
+                bigquery.SchemaField("eta_time",   "STRING"),
+                bigquery.SchemaField("eta_date",   "STRING"),
+                bigquery.SchemaField("clicked_at", "TIMESTAMP"),
+                bigquery.SchemaField("offender",   "STRING"),
+            ]
+            tbl = bigquery.Table(tbl_id, schema=schema)
+            client.create_table(tbl)
+            _logging.info(f"[BQ Events] Tabela criada: {tbl_id}")
+    except Exception as e:
+        _logging.error(f"[BQ Events] ensure_events_table falhou: {e}")
+
+
+def write_bq_event(facility: str, driver_id: str, email: str,
+                   event_type: str, eta_time, eta_date, clicked_at: str):
+    """Insere evento na tabela BigQuery (streaming insert)."""
+    try:
+        client   = _get_client()
+        offender = (
+            "DRIVER"    if event_type == "NOT_USED_INCORRETO" else
+            "OPERATION" if event_type == "NOT_USED_CORRETO"   else
+            None
+        )
+        row = {
+            "facility":   facility.upper(),
+            "driver_id":  str(driver_id),
+            "email":      email or "",
+            "event_type": event_type,
+            "eta_time":   eta_time,
+            "eta_date":   eta_date,
+            "clicked_at": clicked_at,
+            "offender":   offender,
+        }
+        errors = client.insert_rows_json(_events_table_id(), [row])
+        if errors:
+            _logging.error(f"[BQ Events] Insert errors: {errors}")
+    except Exception as e:
+        _logging.error(f"[BQ Events] write_bq_event falhou: {e}")
+
+
+def write_bq_undo(facility: str, driver_id: str, email: str):
+    """Registra UNDO no BigQuery para rastreamento."""
+    try:
+        from datetime import datetime, timezone
+        client = _get_client()
+        row = {
+            "facility":   facility.upper(),
+            "driver_id":  str(driver_id),
+            "email":      email or "",
+            "event_type": "UNDO",
+            "clicked_at": datetime.now(timezone.utc).isoformat(),
+        }
+        client.insert_rows_json(_events_table_id(), [row])
+    except Exception as e:
+        _logging.error(f"[BQ Events] write_bq_undo falhou: {e}")
+
+
+def get_today_bq_events() -> list[dict]:
+    """Retorna os eventos mais recentes de hoje (para restaurar SQLite no startup)."""
+    try:
+        client = _get_client()
+        query  = f"""
+        SELECT * EXCEPT (rn)
+        FROM (
+            SELECT *, ROW_NUMBER() OVER (
+                PARTITION BY facility, driver_id ORDER BY clicked_at DESC
+            ) AS rn
+            FROM `{_events_table_id()}`
+            WHERE DATE(clicked_at, 'America/Sao_Paulo') = CURRENT_DATE('America/Sao_Paulo')
+        )
+        WHERE rn = 1 AND event_type != 'UNDO'
+        """
+        rows = list(client.query(query).result())
+        return [dict(r.items()) for r in rows]
+    except Exception as e:
+        _logging.error(f"[BQ Events] get_today_bq_events falhou: {e}")
+        return []
+
+
+def get_all_bq_events(limit: int = 500) -> list[dict]:
+    """Retorna todos os eventos para o painel admin (do BigQuery)."""
+    try:
+        client = _get_client()
+        query  = f"""
+        SELECT * EXCEPT (rn)
+        FROM (
+            SELECT *, ROW_NUMBER() OVER (
+                PARTITION BY facility, driver_id ORDER BY clicked_at DESC
+            ) AS rn
+            FROM `{_events_table_id()}`
+            WHERE event_type != 'UNDO'
+        )
+        WHERE rn = 1
+        ORDER BY clicked_at DESC
+        LIMIT {int(limit)}
+        """
+        rows = list(client.query(query).result())
+        result = []
+        for r in rows:
+            row = dict(r.items())
+            # Converte Timestamp para string ISO
+            if hasattr(row.get("clicked_at"), "isoformat"):
+                row["clicked_at"] = row["clicked_at"].isoformat()
+            result.append(row)
+        return result
+    except Exception as e:
+        _logging.error(f"[BQ Events] get_all_bq_events falhou: {e}")
+        return []

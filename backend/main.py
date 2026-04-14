@@ -1,5 +1,7 @@
 import os
+import logging
 import pathlib
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -9,9 +11,24 @@ import bigquery_client as bq
 import database as db
 
 load_dotenv()
-db.init_db()
 
-app = FastAPI(title="Notused — Facility Driver Validation", version="2.0.0")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    db.init_db()
+    # Startup: garante tabela BQ e restaura eventos de hoje
+    try:
+        bq.ensure_events_table()
+        today = bq.get_today_bq_events()
+        for ev in today:
+            db.restore_event(ev)
+        logging.info(f"[Startup] {len(today)} eventos restaurados do BigQuery")
+    except Exception as e:
+        logging.error(f"[Startup] Restauração falhou: {e}")
+    yield
+
+
+app = FastAPI(title="Notused — Facility Driver Validation", version="2.0.0", lifespan=lifespan)
 
 origins = os.getenv("CORS_ORIGINS", "http://localhost:8000").split(",")
 app.add_middleware(
@@ -48,6 +65,7 @@ class EventRequest(BaseModel):
 class UndoRequest(BaseModel):
     facility:  str
     driver_id: str
+    email:     str = ""
 
 
 # ─── Endpoints ────────────────────────────────────────────────────────────────
@@ -101,12 +119,19 @@ def record_event(req: EventRequest):
         req.facility, req.driver_id, req.email,
         req.event_type, req.eta_time, req.eta_date
     )
+    bq.write_bq_event(
+        req.facility, req.driver_id, req.email,
+        req.event_type, req.eta_time, req.eta_date,
+        result["clicked_at"]
+    )
     return result
 
 
 @app.delete("/event")
 def undo_event(req: UndoRequest):
     removed = db.delete_event(req.facility, req.driver_id)
+    if removed:
+        bq.write_bq_undo(req.facility, req.driver_id, req.email)
     return {"removed": removed, "facility": req.facility.upper(), "driver_id": req.driver_id}
 
 
@@ -119,7 +144,10 @@ def admin_summary(email: str = Query(...)):
 @app.get("/admin/events")
 def admin_events(email: str = Query(...), limit: int = Query(default=500, le=2000)):
     _require_admin(email)
-    return {"events": db.get_all_events(limit)}
+    events = bq.get_all_bq_events(limit)
+    if not events:
+        events = db.get_all_events(limit)
+    return {"events": events}
 
 
 # ─── Frontend estático ────────────────────────────────────────────────────────

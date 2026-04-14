@@ -127,11 +127,17 @@ function drillFacility(facility) {
     .scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
+function ofensorBadge(offender) {
+  if (offender === 'DRIVER')    return `<span class="ofensor-tag ofensor-driver">Driver</span>`;
+  if (offender === 'OPERATION') return `<span class="ofensor-tag ofensor-op">Operação</span>`;
+  return '<span style="color:var(--muted)">—</span>';
+}
+
 function renderEventsTable(events) {
   const tbody = document.getElementById('events-tbody');
 
   if (!events.length) {
-    tbody.innerHTML = `<tr><td colspan="7">
+    tbody.innerHTML = `<tr><td colspan="8">
       <div class="empty-state"><div class="icon">○</div><p>Nenhum evento encontrado</p></div>
     </td></tr>`;
     return;
@@ -149,6 +155,7 @@ function renderEventsTable(events) {
       <td style="font-weight:700">${esc(e.facility)}</td>
       <td style="font-family:monospace;font-weight:600">${esc(e.driver_id)}</td>
       <td>${eventTypeBadge(e.event_type)}</td>
+      <td>${ofensorBadge(e.offender)}</td>
       <td style="color:var(--blue);font-family:monospace">${esc(etaStr)}</td>
       <td style="color:var(--text2)">${clickedAt}</td>
       <td class="hide-mobile" style="color:var(--muted)">${esc(e.email || '—')}</td>
