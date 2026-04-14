@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Driver Validation — Admin</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- Header -->
+  <header class="app-header">
+    <div class="header-brand">
+      <div class="header-logo-box">N</div>
+      <span class="header-app-name">Driver Validation</span>
+      <span class="admin-badge">Admin</span>
+    </div>
+    <div class="header-right">
+      <span class="header-email hide-mobile" id="header-email"></span>
+      <button class="btn-ghost" onclick="logout()">Sair</button>
+    </div>
+  </header>
+
+  <!-- Main -->
+  <main class="main-content">
+
+    <h1 class="page-title">Visão do Administrador</h1>
+    <p class="page-subtitle">Acompanhe todos os facilities em tempo real e identifique registros NUI Incorreto.</p>
+
+    <!-- NUI Alert banner -->
+    <div class="alert-banner" id="nui-banner" style="display:none">
+      <span style="font-size:18px">⚠</span>
+      <span id="nui-banner-text"></span>
+    </div>
+
+    <!-- Facility cards -->
+    <div class="facility-cards" id="facility-cards">
+      <div style="color:var(--muted);font-size:13px;grid-column:1/-1;padding:8px 0">Carregando dados...</div>
+    </div>
+
+    <!-- Events table -->
+    <div class="section-header">
+      <div class="section-title">Histórico de eventos</div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <select id="filter-facility" class="filter-select" onchange="applyEventFilter()">
+          <option value="">Todos os facilities</option>
+        </select>
+        <select id="filter-type" class="filter-select" onchange="applyEventFilter()">
+          <option value="">Todos os tipos</option>
+          <option value="ARRIVED">✓ Chegou</option>
+          <option value="NOT_USED_CORRETO">Não chegou (NUC)</option>
+          <option value="NOT_USED_INCORRETO">⚠ NUI — Incorreto</option>
+        </select>
+        <button class="btn-refresh" onclick="loadData()">
+          <span>↺</span> Atualizar
+        </button>
+      </div>
+    </div>
+
+    <div class="table-wrapper">
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Facility</th>
+            <th>Driver ID</th>
+            <th>Evento</th>
+            <th>ETA previsto</th>
+            <th>Registrado em</th>
+            <th class="hide-mobile">Operador</th>
+          </tr>
+        </thead>
+        <tbody id="events-tbody"></tbody>
+      </table>
+    </div>
+
+  </main>
+
+  <script src="admin.js"></script>
+</body>
+</html>

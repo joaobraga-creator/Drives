@@ -3,19 +3,21 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>notused — dashboard</title>
+  <title>Driver Validation — Dashboard</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
 
   <!-- Header -->
   <header class="app-header">
-    <div class="header-left">
-      <span class="header-logo">notused</span>
-      <span class="header-facility" id="header-facility"></span>
+    <div class="header-brand">
+      <div class="header-logo-box">N</div>
+      <span class="header-app-name">Driver Validation</span>
+      <span class="header-facility-tag" id="header-facility">—</span>
     </div>
-    <div style="display:flex;gap:8px;align-items:center;">
-      <span id="header-date" style="font-family:var(--mono);font-size:12px;color:var(--muted);"></span>
+    <div class="header-right">
+      <span class="header-date hide-mobile" id="header-date"></span>
+      <span class="header-email hide-mobile" id="header-email"></span>
       <button class="btn-ghost" onclick="logout()">Sair</button>
     </div>
   </header>
@@ -23,38 +25,38 @@
   <!-- Main -->
   <main class="main-content">
 
-    <!-- Stats bar -->
-    <div class="stats-bar" id="stats-bar">
+    <!-- Stats -->
+    <div class="stats-bar">
       <div class="stat-card">
         <div class="stat-label">Total escalados</div>
-        <div class="stat-value accent" id="stat-total">—</div>
+        <div class="stat-value blue" id="stat-total">—</div>
       </div>
       <div class="stat-card">
-        <div class="stat-label">Confirmados</div>
-        <div class="stat-value green" id="stat-confirmados">—</div>
+        <div class="stat-label">Chegaram</div>
+        <div class="stat-value green" id="stat-arrived">—</div>
       </div>
       <div class="stat-card">
         <div class="stat-label">Pendentes</div>
-        <div class="stat-value" id="stat-pendentes">—</div>
+        <div class="stat-value muted" id="stat-pendentes">—</div>
       </div>
       <div class="stat-card">
-        <div class="stat-label">Cancelados</div>
-        <div class="stat-value red" id="stat-cancelados">—</div>
+        <div class="stat-label">Não chegou</div>
+        <div class="stat-value red" id="stat-nao-chegou">—</div>
       </div>
-      <div class="stat-card hide-mobile">
-        <div class="stat-label">Rotas planejadas</div>
-        <div class="stat-value" id="stat-rotas">—</div>
+      <div class="stat-card alert" id="stat-card-nui" style="display:none">
+        <div class="stat-label">⚠ NUI Incorreto</div>
+        <div class="stat-value orange" id="stat-nui">0</div>
       </div>
     </div>
 
     <!-- Filters -->
     <div class="filter-bar">
-      <button class="filter-tab active" data-filter="todos" onclick="setFilter('todos', this)">Todos</button>
-      <button class="filter-tab" data-filter="pendentes" onclick="setFilter('pendentes', this)">Pendentes</button>
-      <button class="filter-tab" data-filter="confirmados" onclick="setFilter('confirmados', this)">Confirmados</button>
-      <button class="filter-tab" data-filter="cancelados" onclick="setFilter('cancelados', this)">Cancelados</button>
+      <button class="filter-tab active" onclick="setFilter('todos', this)">Todos</button>
+      <button class="filter-tab" onclick="setFilter('pendentes', this)">Pendentes</button>
+      <button class="filter-tab" onclick="setFilter('arrived', this)">Chegaram</button>
+      <button class="filter-tab" onclick="setFilter('nao-chegou', this)">Não chegou</button>
       <div class="filter-spacer"></div>
-      <input class="search-input" id="search-input" placeholder="buscar driver ID..." oninput="applyFilters()" />
+      <input class="search-input" id="search-input" placeholder="buscar driver..." oninput="applyFilters()" />
       <button class="btn-refresh" id="btn-refresh" onclick="loadDrivers()">
         <span id="refresh-icon">↺</span> Atualizar
       </button>
@@ -69,17 +71,13 @@
             <th>Driver ID</th>
             <th>Veículo</th>
             <th class="hide-mobile">Tipo</th>
-            <th class="hide-mobile">Categoria</th>
-            <th>Chegada prevista</th>
-            <th class="hide-mobile">Data ETA</th>
-            <th>Status</th>
+            <th>Prev. Chegada</th>
+            <th class="hide-mobile">Status BQ</th>
             <th class="hide-mobile">SVC</th>
             <th>Ação</th>
           </tr>
         </thead>
-        <tbody id="table-body">
-          <!-- preenchido via JS -->
-        </tbody>
+        <tbody id="table-body"></tbody>
       </table>
     </div>
 

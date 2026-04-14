@@ -20,23 +20,17 @@ notused/
 
 ## Setup
 
-### Backend
+### Backend (serve o frontend também)
 
 ```bash
 cd backend
 cp .env.example .env
-# edite .env e aponte GOOGLE_APPLICATION_CREDENTIALS para sua service account
 pip install -r requirements.txt
 uvicorn main:app --reload --port 8000
+# abra http://localhost:8000
 ```
 
-### Frontend
-
-```bash
-cd frontend
-python -m http.server 3000
-# abra http://localhost:3000/index.html
-```
+O backend já serve os arquivos do frontend — não é necessário um servidor separado.
 
 ## Endpoints
 
@@ -51,6 +45,6 @@ python -m http.server 3000
 ## Variáveis de ambiente
 
 ```
-GOOGLE_APPLICATION_CREDENTIALS=./credentials.json   # service account com acesso ao BQ
-CORS_ORIGINS=http://localhost:3000                  # origem do frontend
+GOOGLE_CLOUD_QUOTA_PROJECT=calm-mariner-105612   # projeto GCP com acesso aos datasets
+CORS_ORIGINS=http://localhost:8000               # origem do frontend (mesmo host do backend)
 ```

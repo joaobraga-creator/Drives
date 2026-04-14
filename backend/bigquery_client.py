@@ -1,9 +1,20 @@
 import os
+import json
+import tempfile
 import google.auth
 from google.cloud import bigquery
 from dotenv import load_dotenv
 
 load_dotenv()
+
+# Suporte a credenciais via env var (Render / produção)
+# Em local usa ADC normalmente; em produção recebe o JSON pelo env var.
+_creds_json = os.getenv("GOOGLE_CREDENTIALS_JSON")
+if _creds_json and not os.getenv("GOOGLE_APPLICATION_CREDENTIALS"):
+    _tmp = tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False)
+    _tmp.write(_creds_json)
+    _tmp.close()
+    os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = _tmp.name
 
 _client = None
 
@@ -20,7 +31,7 @@ def _get_client() -> bigquery.Client:
         credentials, _ = google.auth.default()
         # Aplica quota project para acessar datasets internos Meli
         credentials = credentials.with_quota_project(quota_project)
-        _client = bigquery.Client(credentials=credentials)
+        _client = bigquery.Client(credentials=credentials, project=quota_project)
     return _client
 
 
@@ -54,8 +65,8 @@ WITH Planejamento AS (
         SUM(CASE WHEN SHP_CYCLE_NAME = 'CHP' THEN rotas_planejadas ELSE 0 END) AS Rotas_CHP,
         SUM(CASE WHEN SHP_CYCLE_NAME = 'PM1' THEN rotas_planejadas ELSE 0 END) AS Rotas_PM1,
         SUM(rotas_planejadas) AS total_planejado_geral
-    FROM `SBOX_MLBPLACES.MLB_MANAGEMENT_OFFERS_NEX_ROUTE_PLANNED_ROUTES`
-    WHERE facility LIKE '%BRN%'
+    FROM `meli-bi-data.SBOX_MLBPLACES.MLB_MANAGEMENT_OFFERS_NEX_ROUTE_PLANNED_ROUTES`
+    WHERE facility = @facility
     GROUP BY 1, 2, 3
 ),
 Ofertas AS (
@@ -75,8 +86,8 @@ Ofertas AS (
         SUM(rotas_aceitas_canceladas_operacao) AS canceladas_operacao,
         SUM(rotas_aceitas_canceladas_driver)   AS canceladas_driver,
         SUM(rotas_canceladas_total)            AS total_canceladas
-    FROM `SBOX_MLBPLACES.MLB_MANAGEMENT_OFFERS_NEX_OFFERS`
-    WHERE facility LIKE '%BRN%'
+    FROM `meli-bi-data.SBOX_MLBPLACES.MLB_MANAGEMENT_OFFERS_NEX_OFFERS`
+    WHERE facility = @facility
     GROUP BY 1, 2, 3, 4, 5
 ),
 Broadcast_Drivers AS (
