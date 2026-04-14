@@ -9,6 +9,7 @@ import logging
 load_dotenv()
 
 # Suporte a credenciais via env var (Render / produção)
+# Em local usa ADC normalmente; em produção recebe o JSON pelo env var.
 _creds_json = os.getenv("GOOGLE_CREDENTIALS_JSON")
 if _creds_json:
     if not os.getenv("GOOGLE_APPLICATION_CREDENTIALS"):
@@ -16,9 +17,6 @@ if _creds_json:
         _tmp.write(_creds_json)
         _tmp.close()
         os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = _tmp.name
-        logging.info(f"[BQ] GOOGLE_APPLICATION_CREDENTIALS set to {_tmp.name}")
-    else:
-        logging.info("[BQ] GOOGLE_APPLICATION_CREDENTIALS already set, skipping")
 else:
     logging.warning("[BQ] GOOGLE_CREDENTIALS_JSON not found — using local ADC")
 
