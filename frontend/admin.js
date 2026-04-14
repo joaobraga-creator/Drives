@@ -133,6 +133,15 @@ function ofensorBadge(offender) {
   return '<span style="color:var(--muted)">—</span>';
 }
 
+function formatEta(date, time) {
+  if (!date || !time) return '—';
+  try {
+    const dt = new Date(`${date}T${time}`);
+    if (isNaN(dt.getTime())) return '—';
+    return dt.toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
+  } catch { return '—'; }
+}
+
 function renderEventsTable(events) {
   const tbody = document.getElementById('events-tbody');
 
@@ -145,7 +154,7 @@ function renderEventsTable(events) {
 
   tbody.innerHTML = events.map((e, i) => {
     const rowClass  = e.event_type === 'NOT_USED_INCORRETO' ? 'row-nui' : '';
-    const etaStr    = e.eta_time ? `${e.eta_date || ''} ${e.eta_time}`.trim() : '—';
+    const etaStr    = formatEta(e.eta_date, e.eta_time);
     const clickedAt = e.clicked_at
       ? new Date(e.clicked_at).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })
       : '—';
