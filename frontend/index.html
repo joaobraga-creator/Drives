@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>notused — login</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="login-wrapper">
+    <div class="login-card">
+      <div class="login-logo">notused</div>
+      <p class="login-subtitle">Validação de motoristas por facility</p>
+
+      <form id="form-login">
+        <div class="field">
+          <label for="email">Email corporativo</label>
+          <input
+            id="email"
+            type="email"
+            placeholder="seu.email@mercadolivre.com"
+            autocomplete="email"
+            required
+          />
+        </div>
+        <button type="submit" class="btn-primary" id="btn-login">
+          Acessar
+        </button>
+      </form>
+
+      <div class="error-msg" id="error-msg"></div>
+    </div>
+  </div>
+
+  <script>
+    const API = 'http://localhost:8000';
+
+    const form   = document.getElementById('form-login');
+    const btn    = document.getElementById('btn-login');
+    const errEl  = document.getElementById('error-msg');
+    const emailEl = document.getElementById('email');
+
+    function showError(msg) {
+      errEl.textContent = msg;
+      errEl.classList.add('visible');
+    }
+
+    function hideError() {
+      errEl.classList.remove('visible');
+    }
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      hideError();
+
+      const email = emailEl.value.trim();
+      if (!email) return;
+
+      btn.disabled = true;
+      btn.textContent = 'Verificando...';
+
+      try {
+        const res = await fetch(`${API}/auth/email`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email })
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+          showError(data.detail || 'Email não encontrado. Verifique e tente novamente.');
+          return;
+        }
+
+        sessionStorage.setItem('notused_facility', data.facility);
+        sessionStorage.setItem('notused_email', data.email);
+        window.location.href = 'dashboard.html';
+
+      } catch (err) {
+        showError('Erro de conexão. Verifique se o backend está rodando.');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Acessar';
+      }
+    });
+
+    // Se já autenticado, redireciona direto
+    if (sessionStorage.getItem('notused_facility')) {
+      window.location.href = 'dashboard.html';
+    }
+  </script>
+</body>
+</html>
