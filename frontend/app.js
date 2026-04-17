@@ -3,7 +3,6 @@
 
   // ── Auth guard ────────────────────────────────────────────────────────────────
   const facility   = sessionStorage.getItem('notused_facility')   || '';
-  const userEmail  = sessionStorage.getItem('notused_email')      || '';
   const placeName  = sessionStorage.getItem('notused_place_name') || '';
 
   if (!facility) { window.location.replace('index.html'); return; }
@@ -58,12 +57,12 @@
 
   // ── Stats ─────────────────────────────────────────────────────────────────────
   function updateStats() {
-    const total    = allDrivers.length;
-    const arrived  = allDrivers.filter(function (d) { return d.event_type === 'ARRIVED'; }).length;
-    const absent   = allDrivers.filter(function (d) {
+    const total   = allDrivers.length;
+    const arrived = allDrivers.filter(function (d) { return d.event_type === 'ARRIVED'; }).length;
+    const absent  = allDrivers.filter(function (d) {
       return d.event_type === 'NOT_USED_CORRETO' || d.event_type === 'NOT_USED_INCORRETO';
     }).length;
-    const pending  = total - arrived - absent;
+    const pending = total - arrived - absent;
 
     setText('stat-total',     total);
     setText('stat-arrived',   arrived);
@@ -166,118 +165,8 @@
       (svcHtml || regionalHtml
         ? '<div class="card-meta">' + svcHtml + regionalHtml + '</div>'
         : '') +
-      '<div class="card-actions">' + buildActions(d) + '</div>' +
     '</div>';
   }
-
-  function buildActions(d) {
-    var idx = d._idx;
-    var et  = d.event_type;
-
-    if (!et) {
-      return '<button class="btn-arrived" onclick="markArrived(' + idx + ')"><i class="fas fa-check"></i> Chegou</button>' +
-             '<button class="btn-not-arrived" onclick="markNotArrived(' + idx + ')"><i class="fas fa-times"></i> Nao chegou</button>';
-    }
-    if (et === 'ARRIVED') {
-      var lateTag = computeIsLate(d, d.clicked_at ? new Date(d.clicked_at) : null)
-        ? '<span class="ofensor-tag ofensor-driver"><i class="fas fa-clock"></i> Atrasado</span>' : '';
-      return '<div class="event-confirmed">' +
-        '<div class="event-label"><span class="badge badge-arrived"><i class="fas fa-check-circle"></i> Chegou</span>' + lateTag + '</div>' +
-        '<button class="btn-undo" onclick="undoEvent(' + idx + ')"><i class="fas fa-undo"></i> desfazer</button>' +
-      '</div>';
-    }
-    if (et === 'NOT_USED_CORRETO') {
-      return '<div class="event-confirmed">' +
-        '<div class="event-label"><span class="badge badge-nuc"><i class="fas fa-times-circle"></i> Nao chegou</span><span class="ofensor-tag ofensor-op"><i class="fas fa-building"></i> Operacao</span></div>' +
-        '<button class="btn-undo" onclick="undoEvent(' + idx + ')"><i class="fas fa-undo"></i> desfazer</button>' +
-      '</div>';
-    }
-    if (et === 'NOT_USED_INCORRETO') {
-      return '<div class="event-confirmed">' +
-        '<div class="event-label"><span class="badge badge-nui"><i class="fas fa-exclamation-triangle"></i> NUI</span><span class="ofensor-tag ofensor-driver"><i class="fas fa-user"></i> Driver</span></div>' +
-        '<button class="btn-undo" onclick="undoEvent(' + idx + ')"><i class="fas fa-undo"></i> desfazer</button>' +
-      '</div>';
-    }
-    return '';
-  }
-
-  // ── Events ────────────────────────────────────────────────────────────────────
-  window.markArrived = async function (idx) {
-    var driver   = allDrivers[idx];
-    if (!driver) return;
-    var late     = computeIsLate(driver, null);
-    var offender = late ? 'DRIVER' : null;
-    var ok = await postEvent(String(driver.driver_id), 'ARRIVED',
-                             driver.horario_chegada, driver.data_eta, offender);
-    if (ok) {
-      driver.event_type = 'ARRIVED';
-      driver.clicked_at = new Date().toISOString();
-      refresh();
-      if (modalDriver && String(modalDriver.driver_id) === String(driver.driver_id)) {
-        showDriverModal(driver);
-      }
-    }
-  };
-
-  window.markNotArrived = async function (idx) {
-    var driver    = allDrivers[idx];
-    if (!driver) return;
-    var eventType = computeNotUsedType(driver);
-    if (eventType === 'NOT_USED_INCORRETO') {
-      var eta = driver.horario_chegada || driver.eta_planejado_operacao || 'N/A';
-      if (!confirm('Atencao: o ETA deste driver e ' + eta + ' e ainda nao chegou.\n\nMarcar agora sera salvo como NUI. Continuar?')) return;
-    }
-    var offender = eventType === 'NOT_USED_INCORRETO' ? 'DRIVER' : 'OPERATION';
-    var ok = await postEvent(String(driver.driver_id), eventType,
-                             driver.horario_chegada, driver.data_eta, offender);
-    if (ok) {
-      driver.event_type = eventType;
-      refresh();
-      if (modalDriver && String(modalDriver.driver_id) === String(driver.driver_id)) {
-        showDriverModal(driver);
-      }
-    }
-  };
-
-  window.undoEvent = async function (idx) {
-    var driver = allDrivers[idx];
-    if (!driver) return;
-    try {
-      var res = await fetch('/event', {
-        method:  'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ facility: facility, driver_id: String(driver.driver_id), email: userEmail })
-      });
-      if (!res.ok) return;
-      driver.event_type = null;
-      driver.clicked_at = null;
-      refresh();
-      if (modalDriver && String(modalDriver.driver_id) === String(driver.driver_id)) {
-        closeModal();
-      }
-    } catch (_) {}
-  };
-
-  async function postEvent(driverId, eventType, etaTime, etaDate, offender) {
-    try {
-      var res = await fetch('/event', {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({
-          facility:   facility,
-          driver_id:  String(driverId),
-          event_type: eventType,
-          email:      userEmail,
-          eta_time:   etaTime  || null,
-          eta_date:   etaDate  || null,
-          offender:   offender || null
-        })
-      });
-      return res.ok;
-    } catch (_) { return false; }
-  }
-
-  function refresh() { updateStats(); applyFilters(); }
 
   // ── QR Code ───────────────────────────────────────────────────────────────────
   window.openQR = function () {
@@ -296,7 +185,7 @@
       { fps: 10, qrbox: { width: 240, height: 240 }, aspectRatio: 1.0 },
       onQRScan,
       function (_err) {}
-    ).catch(function (err) {
+    ).catch(function () {
       showToast('Camera nao disponivel');
       closeQR();
     });
@@ -314,17 +203,9 @@
   function onQRScan(decodedText) {
     closeQR();
 
-    // Treat QR result as untrusted external input — validate before use
     var raw = String(decodedText || '').trim();
-    if (!raw || raw.length > 50) {
-      showToast('QR code invalido');
-      return;
-    }
-    // Allow only alphanumeric + underscore/hyphen (typical driver IDs)
-    if (!/^[\w\-]+$/.test(raw)) {
-      showToast('QR code invalido');
-      return;
-    }
+    if (!raw || raw.length > 50) { showToast('QR code invalido'); return; }
+    if (!/^[\w\-]+$/.test(raw))  { showToast('QR code invalido'); return; }
 
     var driver = allDrivers.find(function (d) { return String(d.driver_id) === raw; });
     if (driver) {
@@ -344,29 +225,8 @@
     var etaTime = formatTime(driver.horario_chegada || driver.eta_planejado_operacao);
     var id      = escHtml(String(driver.driver_id || ''));
     var vehicle = escHtml(String(driver.tipo_veiculo || '—'));
-    var idx     = driver._idx;
-
-    var actionsHtml = '';
-    if (!et) {
-      actionsHtml =
-        '<button class="modal-btn-arrived" onclick="markArrived(' + idx + ')"><i class="fas fa-check"></i> Chegou</button>' +
-        '<button class="modal-btn-not-arrived" onclick="markNotArrived(' + idx + ')"><i class="fas fa-times"></i> Nao chegou</button>';
-    } else if (et === 'ARRIVED') {
-      actionsHtml =
-        '<div class="modal-confirmed">' +
-          '<div class="modal-confirmed-icon">&#x2705;</div>' +
-          '<div class="modal-confirmed-text">Chegada confirmada</div>' +
-        '</div>' +
-        '<button class="modal-btn-undo" onclick="undoEvent(' + idx + ')">Desfazer</button>';
-    } else {
-      var label = et === 'NOT_USED_INCORRETO' ? '&#x26A0; NUI — Driver' : 'Nao chegou — Operacao';
-      actionsHtml =
-        '<div class="modal-confirmed">' +
-          '<div class="modal-confirmed-icon">&#x274C;</div>' +
-          '<div class="modal-confirmed-text">' + label + '</div>' +
-        '</div>' +
-        '<button class="modal-btn-undo" onclick="undoEvent(' + idx + ')">Desfazer</button>';
-    }
+    var svc     = driver.svc     ? '<span class="meta-chip">' + escHtml(String(driver.svc))     + '</span>' : '';
+    var regional = driver.regional ? '<span class="meta-chip">' + escHtml(String(driver.regional)) + '</span>' : '';
 
     content.innerHTML =
       '<div class="modal-driver-id">' + id + '</div>' +
@@ -375,7 +235,8 @@
         '<div class="modal-eta-label">ETA previsto</div>' +
         '<div class="modal-eta-time">' + escHtml(etaTime) + '</div>' +
       '</div>' +
-      '<div class="modal-actions">' + actionsHtml + '</div>';
+      (svc || regional ? '<div class="modal-meta">' + svc + regional + '</div>' : '') +
+      '<div class="modal-status-block">' + statusBadge(et) + '</div>';
 
     modal.classList.add('open');
   }
@@ -397,25 +258,14 @@
     } catch (_) { return false; }
   }
 
-  function computeNotUsedType(driver) {
-    var etaDate = driver.data_eta;
-    var etaTime = driver.horario_chegada || driver.eta_planejado_operacao;
-    if (!etaDate || !etaTime) return 'NOT_USED_CORRETO';
-    try {
-      var eta = new Date(etaDate + 'T' + etaTime);
-      if (isNaN(eta.getTime())) return 'NOT_USED_CORRETO';
-      return new Date() < eta ? 'NOT_USED_INCORRETO' : 'NOT_USED_CORRETO';
-    } catch (_) { return 'NOT_USED_CORRETO'; }
-  }
-
   function computeDelta(driver, now) {
     var etaDate = driver.data_eta;
     var etaTime = driver.horario_chegada || driver.eta_planejado_operacao;
     if (!etaDate || !etaTime || driver.event_type) return '';
     try {
-      var eta      = new Date(etaDate + 'T' + etaTime);
+      var eta     = new Date(etaDate + 'T' + etaTime);
       if (isNaN(eta.getTime())) return '';
-      var diffMin  = Math.round((eta.getTime() - now.getTime()) / 60000);
+      var diffMin = Math.round((eta.getTime() - now.getTime()) / 60000);
       if (diffMin > 0)  return '+' + diffMin + 'min';
       if (diffMin < 0)  return diffMin + 'min';
       return 'agora';
@@ -456,10 +306,10 @@
   }
 
   function statusBadge(et) {
-    if (!et)                      return '<span class="badge badge-pending">Pendente</span>';
-    if (et === 'ARRIVED')         return '<span class="badge badge-arrived">&#x2713; Chegou</span>';
-    if (et === 'NOT_USED_CORRETO')   return '<span class="badge badge-nuc">Ausente</span>';
-    if (et === 'NOT_USED_INCORRETO') return '<span class="badge badge-nui">&#x26A0; NUI</span>';
+    if (!et)                          return '<span class="badge badge-pending">Pendente</span>';
+    if (et === 'ARRIVED')             return '<span class="badge badge-arrived">&#x2713; Chegou</span>';
+    if (et === 'NOT_USED_CORRETO')    return '<span class="badge badge-nuc">Ausente</span>';
+    if (et === 'NOT_USED_INCORRETO')  return '<span class="badge badge-nui">&#x26A0; NUI</span>';
     return '';
   }
 
@@ -468,10 +318,8 @@
       return '<div class="skeleton-card">' +
         '<div class="skeleton-bar" style="width:55%;margin-bottom:14px"></div>' +
         '<div class="skeleton-bar" style="width:80%;height:48px;border-radius:10px;margin-bottom:14px"></div>' +
-        '<div style="display:flex;gap:8px">' +
-          '<div class="skeleton-bar" style="flex:1;height:48px;border-radius:10px;margin:0"></div>' +
-          '<div class="skeleton-bar" style="flex:1;height:48px;border-radius:10px;margin:0"></div>' +
-        '</div></div>';
+        '<div class="skeleton-bar" style="width:60%;height:24px;border-radius:8px;margin:0"></div>' +
+        '</div>';
     }).join('');
   }
 
