@@ -138,7 +138,7 @@ tb1 AS (
         OR o.REGIONAL IS NULL
 )
 SELECT
-    t.facility,
+    b.FACILITY_ID               AS facility,
     b.DRIVER_ID                 AS driver_id,
     b.VEHICLE_DESCRIPTION       AS tipo_veiculo,
     b.DRIVER_TYPE               AS driver_type,
@@ -158,8 +158,8 @@ SELECT
     t.canceladas_operacao,
     t.canceladas_driver,
     t.total_canceladas
-FROM tb1 t
-LEFT JOIN Broadcast_Drivers b ON t.facility = b.FACILITY_ID
+FROM Broadcast_Drivers b
+LEFT JOIN tb1 t ON b.FACILITY_ID = t.facility
 ORDER BY b.HORARIO_CHEGADA ASC, b.DRIVER_ID ASC
 """
 
