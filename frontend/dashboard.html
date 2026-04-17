@@ -6,19 +6,24 @@
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-  <title>Driver Check — notused</title>
+  <title>Driver Check — Mercado Livre</title>
   <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
 </head>
 <body>
 
   <!-- ── Header ── -->
   <header class="app-header">
     <div class="header-brand">
-      <div class="header-logo">N</div>
+      <img class="header-logo"
+           src="https://http2.mlstatic.com/frontend-assets/ui-navigation/5.18.9/mercadolibre/logo__small@2x.png"
+           alt="Mercado Livre" />
       <span class="header-app-name">Driver Check</span>
       <span class="header-facility-tag" id="header-facility">—</span>
     </div>
-    <button class="btn-logout" onclick="logout()">Sair</button>
+    <button class="btn-logout" onclick="logout()">
+      <i class="fas fa-sign-out-alt"></i> Sair
+    </button>
   </header>
 
   <!-- ── Stats strip ── -->
@@ -65,10 +70,10 @@
 
   <!-- ── Filter tabs ── -->
   <div class="filter-tabs">
-    <button class="tab active" onclick="setFilter('todos', this)">Todos</button>
-    <button class="tab" onclick="setFilter('pendentes', this)">Pendentes</button>
-    <button class="tab" onclick="setFilter('arrived', this)">Chegaram</button>
-    <button class="tab" onclick="setFilter('nao-chegou', this)">Ausentes</button>
+    <button class="tab active" onclick="setFilter('todos', this)"><i class="fas fa-list"></i> Todos</button>
+    <button class="tab" onclick="setFilter('pendentes', this)"><i class="fas fa-clock"></i> Pendentes</button>
+    <button class="tab" onclick="setFilter('arrived', this)"><i class="fas fa-check-circle"></i> Chegaram</button>
+    <button class="tab" onclick="setFilter('nao-chegou', this)"><i class="fas fa-times-circle"></i> Ausentes</button>
   </div>
 
   <!-- ── Cards ── -->

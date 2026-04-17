@@ -5,9 +5,9 @@
 :root {
   --yellow:        #FFE600;
   --yellow-dark:   #D4C000;
-  --blue:          #3483FA;
-  --blue-dark:     #2968C8;
-  --blue-bg:       #EBF3FF;
+  --blue:          #1259C3;
+  --blue-dark:     #0d47a1;
+  --blue-bg:       #EBF0FF;
   --green:         #00A650;
   --green-dark:    #007A3D;
   --green-bg:      #E8F8EF;
@@ -153,56 +153,59 @@ body {
   position: fixed;
   top: 0; left: 0; right: 0;
   height: var(--header-h);
-  background: var(--surface);
-  border-bottom: 1px solid var(--border);
+  background: var(--yellow);
+  border-bottom: none;
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 0 16px;
   z-index: 100;
-  box-shadow: var(--shadow-sm);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.12);
 }
 
-.header-brand { display: flex; align-items: center; gap: 8px; }
+.header-brand { display: flex; align-items: center; gap: 10px; }
 
 .header-logo {
-  width: 32px;
-  height: 32px;
-  background: var(--yellow);
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 14px;
-  font-weight: 800;
+  height: 28px;
+  width: auto;
+  display: block;
   flex-shrink: 0;
 }
 
-.header-app-name { font-size: 15px; font-weight: 700; letter-spacing: -0.3px; }
+.header-app-name {
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: -0.3px;
+  color: var(--text);
+}
 
 .header-facility-tag {
-  background: var(--blue-bg);
-  color: var(--blue);
-  font-size: 12px;
+  background: rgba(0,0,0,0.12);
+  color: var(--text);
+  font-size: 11px;
   font-weight: 700;
   padding: 3px 9px;
   border-radius: 20px;
+  letter-spacing: 0.3px;
 }
 
 .btn-logout {
-  background: none;
-  border: 1.5px solid var(--border);
+  background: rgba(255,255,255,0.9);
+  border: none;
   border-radius: var(--radius-xs);
-  color: var(--text2);
+  color: var(--text);
   font-family: var(--sans);
-  font-size: 13px;
-  font-weight: 500;
+  font-size: 12px;
+  font-weight: 600;
   padding: 7px 13px;
   cursor: pointer;
   user-select: none;
   transition: background 0.12s;
+  display: flex;
+  align-items: center;
+  gap: 5px;
 }
-.btn-logout:active { background: var(--bg); }
+.btn-logout:active { background: rgba(255,255,255,0.7); }
 
 /* ── Stats strip ────────────────────────────────────────────────────────────── */
 
@@ -472,6 +475,7 @@ body {
   transition: background 0.12s, transform 0.08s;
 }
 .btn-arrived:active { background: var(--green-dark); transform: scale(0.97); }
+.btn-arrived i { font-size: 13px; }
 
 .btn-not-arrived {
   flex: 1;

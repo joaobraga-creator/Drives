@@ -172,27 +172,27 @@
     var et  = d.event_type;
 
     if (!et) {
-      return '<button class="btn-arrived" onclick="markArrived(' + idx + ')">&#x2713; Chegou</button>' +
-             '<button class="btn-not-arrived" onclick="markNotArrived(' + idx + ')">Nao chegou</button>';
+      return '<button class="btn-arrived" onclick="markArrived(' + idx + ')"><i class="fas fa-check"></i> Chegou</button>' +
+             '<button class="btn-not-arrived" onclick="markNotArrived(' + idx + ')"><i class="fas fa-times"></i> Nao chegou</button>';
     }
     if (et === 'ARRIVED') {
       var lateTag = computeIsLate(d, d.clicked_at ? new Date(d.clicked_at) : null)
-        ? '<span class="ofensor-tag ofensor-driver">Atrasado</span>' : '';
+        ? '<span class="ofensor-tag ofensor-driver"><i class="fas fa-clock"></i> Atrasado</span>' : '';
       return '<div class="event-confirmed">' +
-        '<div class="event-label"><span class="badge badge-arrived">&#x2713; Chegou</span>' + lateTag + '</div>' +
-        '<button class="btn-undo" onclick="undoEvent(' + idx + ')">desfazer</button>' +
+        '<div class="event-label"><span class="badge badge-arrived"><i class="fas fa-check-circle"></i> Chegou</span>' + lateTag + '</div>' +
+        '<button class="btn-undo" onclick="undoEvent(' + idx + ')"><i class="fas fa-undo"></i> desfazer</button>' +
       '</div>';
     }
     if (et === 'NOT_USED_CORRETO') {
       return '<div class="event-confirmed">' +
-        '<div class="event-label"><span class="badge badge-nuc">Nao chegou</span><span class="ofensor-tag ofensor-op">Operacao</span></div>' +
-        '<button class="btn-undo" onclick="undoEvent(' + idx + ')">desfazer</button>' +
+        '<div class="event-label"><span class="badge badge-nuc"><i class="fas fa-times-circle"></i> Nao chegou</span><span class="ofensor-tag ofensor-op"><i class="fas fa-building"></i> Operacao</span></div>' +
+        '<button class="btn-undo" onclick="undoEvent(' + idx + ')"><i class="fas fa-undo"></i> desfazer</button>' +
       '</div>';
     }
     if (et === 'NOT_USED_INCORRETO') {
       return '<div class="event-confirmed">' +
-        '<div class="event-label"><span class="badge badge-nui">&#x26A0; NUI</span><span class="ofensor-tag ofensor-driver">Driver</span></div>' +
-        '<button class="btn-undo" onclick="undoEvent(' + idx + ')">desfazer</button>' +
+        '<div class="event-label"><span class="badge badge-nui"><i class="fas fa-exclamation-triangle"></i> NUI</span><span class="ofensor-tag ofensor-driver"><i class="fas fa-user"></i> Driver</span></div>' +
+        '<button class="btn-undo" onclick="undoEvent(' + idx + ')"><i class="fas fa-undo"></i> desfazer</button>' +
       '</div>';
     }
     return '';
@@ -346,8 +346,8 @@
     var actionsHtml = '';
     if (!et) {
       actionsHtml =
-        '<button class="modal-btn-arrived" onclick="markArrived(' + idx + ')">&#x2713; Chegou</button>' +
-        '<button class="modal-btn-not-arrived" onclick="markNotArrived(' + idx + ')">Nao chegou</button>';
+        '<button class="modal-btn-arrived" onclick="markArrived(' + idx + ')"><i class="fas fa-check"></i> Chegou</button>' +
+        '<button class="modal-btn-not-arrived" onclick="markNotArrived(' + idx + ')"><i class="fas fa-times"></i> Nao chegou</button>';
     } else if (et === 'ARRIVED') {
       actionsHtml =
         '<div class="modal-confirmed">' +
