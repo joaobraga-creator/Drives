@@ -2,87 +2,98 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Driver Validation — Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <title>Driver Check — notused</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
 
-  <!-- Header -->
+  <!-- ── Header ── -->
   <header class="app-header">
     <div class="header-brand">
-      <div class="header-logo-box">N</div>
-      <span class="header-app-name">Driver Validation</span>
+      <div class="header-logo">N</div>
+      <span class="header-app-name">Driver Check</span>
       <span class="header-facility-tag" id="header-facility">—</span>
     </div>
-    <div class="header-right">
-      <span class="header-date hide-mobile" id="header-date"></span>
-      <span class="header-email hide-mobile" id="header-email"></span>
-      <button class="btn-ghost" onclick="logout()">Sair</button>
-    </div>
+    <button class="btn-logout" onclick="logout()">Sair</button>
   </header>
 
-  <!-- Main -->
-  <main class="main-content">
-
-    <!-- Stats -->
-    <div class="stats-bar">
-      <div class="stat-card">
-        <div class="stat-label">Total escalados</div>
-        <div class="stat-value blue" id="stat-total">—</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-label">Chegaram</div>
-        <div class="stat-value green" id="stat-arrived">—</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-label">Pendentes</div>
-        <div class="stat-value muted" id="stat-pendentes">—</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-label">Não chegou</div>
-        <div class="stat-value red" id="stat-nao-chegou">—</div>
-      </div>
-      <div class="stat-card alert" id="stat-card-nui" style="display:none">
-        <div class="stat-label">⚠ NUI Incorreto</div>
-        <div class="stat-value orange" id="stat-nui">0</div>
-      </div>
+  <!-- ── Stats strip ── -->
+  <div class="stats-strip">
+    <div class="stat-pill" data-filter="todos" onclick="setFilter('todos', this)">
+      <span class="stat-num" id="stat-total">—</span>
+      <span class="stat-lbl">Total</span>
     </div>
-
-    <!-- Filters -->
-    <div class="filter-bar">
-      <button class="filter-tab active" onclick="setFilter('todos', this)">Todos</button>
-      <button class="filter-tab" onclick="setFilter('pendentes', this)">Pendentes</button>
-      <button class="filter-tab" onclick="setFilter('arrived', this)">Chegaram</button>
-      <button class="filter-tab" onclick="setFilter('nao-chegou', this)">Não chegou</button>
-      <div class="filter-spacer"></div>
-      <input class="search-input" id="search-input" placeholder="buscar driver..." oninput="applyFilters()" />
-      <button class="btn-refresh" id="btn-refresh" onclick="loadDrivers()">
-        <span id="refresh-icon">↺</span> Atualizar
-      </button>
+    <div class="stat-pill green" data-filter="arrived" onclick="setFilter('arrived', this)">
+      <span class="stat-num" id="stat-arrived">—</span>
+      <span class="stat-lbl">Chegaram</span>
     </div>
-
-    <!-- Table -->
-    <div class="table-wrapper">
-      <table>
-        <thead>
-          <tr>
-            <th>#</th>
-            <th>Driver ID</th>
-            <th>Veículo</th>
-            <th class="hide-mobile">Tipo</th>
-            <th>Prev. Chegada</th>
-            <th class="hide-mobile">Status BQ</th>
-            <th class="hide-mobile">SVC</th>
-            <th>Ação</th>
-          </tr>
-        </thead>
-        <tbody id="table-body"></tbody>
-      </table>
+    <div class="stat-pill blue" data-filter="pendentes" onclick="setFilter('pendentes', this)">
+      <span class="stat-num" id="stat-pendentes">—</span>
+      <span class="stat-lbl">Pendentes</span>
     </div>
+    <div class="stat-pill red" data-filter="nao-chegou" onclick="setFilter('nao-chegou', this)">
+      <span class="stat-num" id="stat-nao-chegou">—</span>
+      <span class="stat-lbl">Ausentes</span>
+    </div>
+  </div>
 
-  </main>
+  <!-- ── Toolbar ── -->
+  <div class="toolbar">
+    <input
+      class="search-input"
+      id="search-input"
+      type="search"
+      placeholder="Buscar driver ID..."
+      oninput="applyFilters()"
+      autocomplete="off"
+    />
+    <button class="btn-qr" id="btn-qr" onclick="openQR()" title="Escanear QR code">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
+        <rect x="3" y="14" width="7" height="7" rx="1"/>
+        <path d="M14 14h2v2h-2zM18 14h3v3h-3zM14 18h2v3h-2zM18 19h3v2h-3z"/>
+      </svg>
+    </button>
+    <button class="btn-refresh" id="btn-refresh" onclick="loadDrivers()" title="Atualizar">
+      <span id="refresh-icon">↺</span>
+    </button>
+  </div>
 
+  <!-- ── Filter tabs ── -->
+  <div class="filter-tabs">
+    <button class="tab active" onclick="setFilter('todos', this)">Todos</button>
+    <button class="tab" onclick="setFilter('pendentes', this)">Pendentes</button>
+    <button class="tab" onclick="setFilter('arrived', this)">Chegaram</button>
+    <button class="tab" onclick="setFilter('nao-chegou', this)">Ausentes</button>
+  </div>
+
+  <!-- ── Cards ── -->
+  <main class="cards-container" id="cards-container"></main>
+
+  <!-- ── QR Overlay ── -->
+  <div class="qr-overlay" id="qr-overlay" role="dialog" aria-modal="true" aria-label="Leitor de QR code">
+    <div class="qr-topbar">
+      <span>Escanear QR do Driver</span>
+      <button class="btn-qr-close" onclick="closeQR()" aria-label="Fechar">&#x2715;</button>
+    </div>
+    <div id="qr-reader"></div>
+    <p class="qr-hint">Aponte a camera para o QR code do driver</p>
+  </div>
+
+  <!-- ── Driver modal (bottom sheet after QR scan) ── -->
+  <div class="driver-modal" id="driver-modal" role="dialog" aria-modal="true">
+    <div class="modal-backdrop" id="modal-backdrop" onclick="closeModal()"></div>
+    <div class="modal-sheet" id="modal-sheet">
+      <div class="modal-handle"></div>
+      <div id="modal-content"></div>
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

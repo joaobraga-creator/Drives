@@ -1,4 +1,5 @@
 import os
+import re
 import logging
 import pathlib
 from contextlib import asynccontextmanager
@@ -92,12 +93,17 @@ def auth_by_email(req: EmailRequest):
     return {"facility": facility, "email": email, "is_admin": False}
 
 
+_FACILITY_RE = re.compile(r'^[A-Z0-9_\-]{1,30}$')
+
 @app.get("/drivers/{facility}")
 def get_drivers(facility: str):
     if not facility:
         raise HTTPException(status_code=400, detail="Facility é obrigatório.")
-    drivers = bq.get_drivers_by_facility(facility.upper())
-    events  = db.get_events_map(facility)
+    facility_upper = facility.upper()
+    if not _FACILITY_RE.match(facility_upper):
+        raise HTTPException(status_code=400, detail="Facility inválido.")
+    drivers = bq.get_drivers_by_facility(facility_upper)
+    events  = db.get_events_map(facility_upper)
     for d in drivers:
         ev = events.get(str(d.get("driver_id") or ""))
         if ev:
@@ -108,7 +114,7 @@ def get_drivers(facility: str):
             d["event_type"]  = None
             d["clicked_at"]  = None
             d["event_email"] = None
-    return {"facility": facility.upper(), "total": len(drivers), "drivers": drivers}
+    return {"facility": facility_upper, "total": len(drivers), "drivers": drivers}
 
 
 @app.post("/event")

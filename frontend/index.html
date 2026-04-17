@@ -2,8 +2,11 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Driver Validation — Login</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <title>notused — Driver Check</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
@@ -16,10 +19,10 @@
         <div class="login-brand-name">not<span>used</span></div>
       </div>
 
-      <h1 class="login-title">Validação de Drivers</h1>
+      <h1 class="login-title">Driver Check</h1>
       <p class="login-subtitle">Acesse com seu email corporativo para monitorar os drivers escalados no seu facility.</p>
 
-      <form id="form-login">
+      <form id="form-login" novalidate>
         <div class="field">
           <label for="email">Email corporativo</label>
           <input
@@ -27,72 +30,77 @@
             type="email"
             placeholder="seu.nome@mercadolivre.com"
             autocomplete="email"
+            inputmode="email"
             required
           />
         </div>
         <button type="submit" class="btn-primary" id="btn-login">Entrar</button>
       </form>
 
-      <div class="error-msg" id="error-msg"></div>
+      <div class="error-msg" id="error-msg" role="alert"></div>
 
     </div>
   </div>
 
   <script>
-    // Redirect se já logado
-    if (sessionStorage.getItem('notused_is_admin') === 'true') {
-      window.location.href = 'admin.html';
-    } else if (sessionStorage.getItem('notused_facility')) {
-      window.location.href = 'dashboard.html';
-    }
+    (function () {
+      if (sessionStorage.getItem('notused_facility')) {
+        window.location.replace('dashboard.html');
+        return;
+      }
 
-    const form    = document.getElementById('form-login');
-    const btn     = document.getElementById('btn-login');
-    const errEl   = document.getElementById('error-msg');
-    const emailEl = document.getElementById('email');
+      const form    = document.getElementById('form-login');
+      const btn     = document.getElementById('btn-login');
+      const errEl   = document.getElementById('error-msg');
+      const emailEl = document.getElementById('email');
 
-    function showError(msg) { errEl.textContent = msg; errEl.classList.add('visible'); }
-    function hideError()    { errEl.classList.remove('visible'); }
+      function showError(msg) {
+        errEl.textContent = msg;
+        errEl.classList.add('visible');
+      }
+      function hideError() { errEl.classList.remove('visible'); }
 
-    form.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      hideError();
-      const email = emailEl.value.trim();
-      if (!email) return;
+      form.addEventListener('submit', async function (e) {
+        e.preventDefault();
+        hideError();
 
-      btn.disabled    = true;
-      btn.textContent = 'Verificando...';
+        const raw   = emailEl.value.trim().toLowerCase();
+        const email = raw;
 
-      try {
-        const res  = await fetch('/auth/email', {
-          method:  'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body:    JSON.stringify({ email })
-        });
-        const data = await res.json();
-
-        if (!res.ok) {
-          showError(data.detail || 'Email não encontrado. Verifique e tente novamente.');
+        if (!email || !email.includes('@')) {
+          showError('Informe um email válido.');
           return;
         }
 
-        sessionStorage.setItem('notused_email',    data.email);
-        sessionStorage.setItem('notused_is_admin', data.is_admin ? 'true' : 'false');
+        btn.disabled    = true;
+        btn.textContent = 'Verificando...';
 
-        if (data.is_admin) {
-          window.location.href = 'admin.html';
-        } else {
-          sessionStorage.setItem('notused_facility', data.facility);
-          window.location.href = 'dashboard.html';
+        try {
+          const res  = await fetch('/auth/email', {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body:    JSON.stringify({ email: email })
+          });
+          const data = await res.json();
+
+          if (!res.ok) {
+            showError(data.detail || 'Email não encontrado.');
+            return;
+          }
+
+          sessionStorage.setItem('notused_email',    data.email);
+          sessionStorage.setItem('notused_facility', data.facility || '');
+
+          window.location.replace('dashboard.html');
+
+        } catch (_) {
+          showError('Erro de conexão. Verifique se o backend está rodando.');
+        } finally {
+          btn.disabled    = false;
+          btn.textContent = 'Entrar';
         }
-
-      } catch {
-        showError('Erro de conexão. Verifique se o backend está rodando.');
-      } finally {
-        btn.disabled    = false;
-        btn.textContent = 'Entrar';
-      }
-    });
+      });
+    })();
   </script>
 
 </body>

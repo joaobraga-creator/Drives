@@ -1,341 +1,485 @@
-// ─── Auth guard ───────────────────────────────────────────────────────────────
-const facility  = sessionStorage.getItem('notused_facility');
-const userEmail = sessionStorage.getItem('notused_email') || '';
+(function () {
+  'use strict';
 
-if (!facility) window.location.href = 'index.html';
+  // ── Auth guard ────────────────────────────────────────────────────────────────
+  const facility  = sessionStorage.getItem('notused_facility') || '';
+  const userEmail = sessionStorage.getItem('notused_email')    || '';
 
-function logout() {
-  sessionStorage.clear();
-  window.location.href = 'index.html';
-}
+  if (!facility) { window.location.replace('index.html'); return; }
 
-// ─── State ────────────────────────────────────────────────────────────────────
-let allDrivers   = [];
-let activeFilter = 'todos';
+  // ── State ─────────────────────────────────────────────────────────────────────
+  let allDrivers   = [];
+  let activeFilter = 'todos';
+  let modalDriver  = null;
+  let html5QrCode  = null;
 
-// ─── Init ─────────────────────────────────────────────────────────────────────
-document.addEventListener('DOMContentLoaded', () => {
-  const el = document.getElementById('header-facility');
-  if (el) el.textContent = facility;
-
-  const emailEl = document.getElementById('header-email');
-  if (emailEl) emailEl.textContent = userEmail;
-
-  const dateEl = document.getElementById('header-date');
-  if (dateEl) {
-    dateEl.textContent = new Date().toLocaleDateString('pt-BR', {
-      weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric'
-    });
-  }
-
-  // Event delegation — evita bugs de onclick inline com re-render do DOM
-  document.getElementById('table-body').addEventListener('click', (e) => {
-    const btn = e.target.closest('[data-action]');
-    if (!btn) return;
-    const idx    = parseInt(btn.dataset.idx);
-    const action = btn.dataset.action;
-    const driver = allDrivers[idx];
-    if (!driver) return;
-    if (action === 'arrived')          markArrived(driver);
-    else if (action === 'not-arrived') markNotArrived(driver);
-    else if (action === 'undo')        undoEvent(driver);
+  // ── Init ──────────────────────────────────────────────────────────────────────
+  document.addEventListener('DOMContentLoaded', function () {
+    const facilityEl = document.getElementById('header-facility');
+    if (facilityEl) facilityEl.textContent = facility;
+    loadDrivers();
   });
 
-  loadDrivers();
-});
+  // ── Logout ────────────────────────────────────────────────────────────────────
+  window.logout = function () {
+    sessionStorage.clear();
+    window.location.replace('index.html');
+  };
 
-// ─── Load drivers ─────────────────────────────────────────────────────────────
-async function loadDrivers() {
-  const tbody = document.getElementById('table-body');
-  const btnR  = document.getElementById('btn-refresh');
-  const icon  = document.getElementById('refresh-icon');
+  // ── Load drivers ──────────────────────────────────────────────────────────────
+  window.loadDrivers = async function () {
+    const container = document.getElementById('cards-container');
+    const btnR      = document.getElementById('btn-refresh');
+    const icon      = document.getElementById('refresh-icon');
 
-  btnR.classList.add('loading');
-  icon.innerHTML = '<span class="spinner"></span>';
-  renderSkeleton(tbody);
-
-  try {
-    const res  = await fetch(`/drivers/${encodeURIComponent(facility)}`);
-    const data = await res.json();
-
-    if (!res.ok) { renderError(tbody, data.detail || 'Erro ao carregar.'); return; }
-
-    allDrivers = (data.drivers || []).map((d, i) => ({ ...d, _idx: i }));
-    updateStats();
-    applyFilters();
-
-  } catch {
-    renderError(tbody, 'Erro de conexão. Backend offline?');
-  } finally {
-    btnR.classList.remove('loading');
+    btnR.classList.add('spinning');
     icon.textContent = '↺';
-  }
-}
+    renderSkeleton(container);
 
-// ─── Stats ────────────────────────────────────────────────────────────────────
-function updateStats() {
-  const total     = allDrivers.length;
-  const arrived   = allDrivers.filter(d => d.event_type === 'ARRIVED').length;
-  const naoChegou = allDrivers.filter(d => d.event_type === 'NOT_USED_CORRETO' || d.event_type === 'NOT_USED_INCORRETO').length;
-  const nui       = allDrivers.filter(d => d.event_type === 'NOT_USED_INCORRETO').length;
-  const pendentes = total - arrived - naoChegou;
+    try {
+      const res  = await fetch('/drivers/' + encodeURIComponent(facility));
+      const data = await res.json();
 
-  setText('stat-total',      total);
-  setText('stat-arrived',    arrived);
-  setText('stat-pendentes',  pendentes);
-  setText('stat-nao-chegou', naoChegou);
-  setText('stat-nui',        nui);
+      if (!res.ok) { renderError(container, data.detail || 'Erro ao carregar.'); return; }
 
-  const nuiCard = document.getElementById('stat-card-nui');
-  if (nuiCard) nuiCard.style.display = nui > 0 ? '' : 'none';
-}
+      allDrivers = (data.drivers || []).map(function (d, i) { return Object.assign({}, d, { _idx: i }); });
+      updateStats();
+      applyFilters();
 
-function setText(id, val) {
-  const el = document.getElementById(id);
-  if (el) el.textContent = val;
-}
+    } catch (_) {
+      renderError(container, 'Erro de conexao. Backend offline?');
+    } finally {
+      btnR.classList.remove('spinning');
+    }
+  };
 
-// ─── Filters ──────────────────────────────────────────────────────────────────
-function setFilter(filter, btn) {
-  activeFilter = filter;
-  document.querySelectorAll('.filter-tab').forEach(t => t.classList.remove('active'));
-  btn.classList.add('active');
-  applyFilters();
-}
+  // ── Stats ─────────────────────────────────────────────────────────────────────
+  function updateStats() {
+    const total    = allDrivers.length;
+    const arrived  = allDrivers.filter(function (d) { return d.event_type === 'ARRIVED'; }).length;
+    const absent   = allDrivers.filter(function (d) {
+      return d.event_type === 'NOT_USED_CORRETO' || d.event_type === 'NOT_USED_INCORRETO';
+    }).length;
+    const pending  = total - arrived - absent;
 
-function applyFilters() {
-  const search = (document.getElementById('search-input')?.value || '').toLowerCase().trim();
-  const tbody  = document.getElementById('table-body');
-  let list = allDrivers.slice();
-
-  if (activeFilter === 'pendentes')  list = list.filter(d => !d.event_type);
-  if (activeFilter === 'arrived')    list = list.filter(d => d.event_type === 'ARRIVED');
-  if (activeFilter === 'nao-chegou') list = list.filter(d =>
-    d.event_type === 'NOT_USED_CORRETO' || d.event_type === 'NOT_USED_INCORRETO'
-  );
-
-  if (search) {
-    list = list.filter(d =>
-      String(d.driver_id   || '').toLowerCase().includes(search) ||
-      String(d.tipo_veiculo|| '').toLowerCase().includes(search) ||
-      String(d.driver_type || '').toLowerCase().includes(search)
-    );
+    setText('stat-total',     total);
+    setText('stat-arrived',   arrived);
+    setText('stat-pendentes', pending);
+    setText('stat-nao-chegou', absent);
   }
 
-  renderTable(tbody, list);
-}
-
-// ─── Render ───────────────────────────────────────────────────────────────────
-function renderTable(tbody, drivers) {
-  if (!drivers.length) {
-    tbody.innerHTML = `<tr><td colspan="8">
-      <div class="empty-state"><div class="icon">○</div><p>Nenhum motorista encontrado</p></div>
-    </td></tr>`;
-    return;
+  function setText(id, val) {
+    var el = document.getElementById(id);
+    if (el) el.textContent = String(val);
   }
-  tbody.innerHTML = drivers.map((d, i) => buildRow(d, i + 1)).join('');
-}
 
-function buildRow(d, num) {
-  const et = d.event_type;
-  const rowClass = et === 'ARRIVED'              ? 'row-arrived'
-                 : et === 'NOT_USED_INCORRETO'   ? 'row-nui'
-                 : et === 'NOT_USED_CORRETO'     ? 'row-nuc'
-                 : '';
+  // ── Filters ───────────────────────────────────────────────────────────────────
+  window.setFilter = function (filter, btn) {
+    activeFilter = filter;
 
-  const chegada  = escHtml(d.horario_chegada || d.eta_planejado_operacao || '—');
-  const statusBQ = d.status_driver || '—';
-  const driverId = escHtml(String(d.driver_id  || '—'));
-  const tipo     = escHtml(String(d.driver_type|| '—'));
-  const svc      = escHtml(String(d.svc        || '—'));
+    document.querySelectorAll('.tab').forEach(function (t) { t.classList.remove('active'); });
+    document.querySelectorAll('.stat-pill').forEach(function (p) { p.classList.remove('active'); });
 
-  return `<tr class="${rowClass}" id="row-${driverId}">
-    <td style="color:var(--muted);font-size:12px">${num}</td>
-    <td style="font-family:monospace;font-weight:600">${driverId}</td>
-    <td>${vehicleToBadge(d.tipo_veiculo)}</td>
-    <td class="hide-mobile" style="color:var(--text2)">${tipo}</td>
-    <td style="font-weight:600;color:var(--blue)">${chegada}</td>
-    <td class="hide-mobile">${statusToDot(statusBQ)}${escHtml(statusBQ)}</td>
-    <td class="hide-mobile" style="color:var(--muted)">${svc}</td>
-    <td>${buildActionCell(d)}</td>
-  </tr>`;
-}
+    if (btn) {
+      btn.classList.add('active');
+      var matchingPill = document.querySelector('.stat-pill[data-filter="' + filter + '"]');
+      if (matchingPill) matchingPill.classList.add('active');
+    }
 
-function buildActionCell(d) {
-  const idx = d._idx;
-  const et  = d.event_type;
+    applyFilters();
+  };
 
-  if (!et) {
-    return `<div class="action-group">
-      <button class="btn-arrived"     data-action="arrived"     data-idx="${idx}">✓ Chegou</button>
-      <button class="btn-not-arrived" data-action="not-arrived" data-idx="${idx}">Não chegou</button>
-    </div>`;
+  window.applyFilters = function () {
+    var search = (document.getElementById('search-input').value || '').toLowerCase().trim();
+    var list   = allDrivers.slice();
+
+    if (activeFilter === 'pendentes')  list = list.filter(function (d) { return !d.event_type; });
+    if (activeFilter === 'arrived')    list = list.filter(function (d) { return d.event_type === 'ARRIVED'; });
+    if (activeFilter === 'nao-chegou') list = list.filter(function (d) {
+      return d.event_type === 'NOT_USED_CORRETO' || d.event_type === 'NOT_USED_INCORRETO';
+    });
+
+    if (search) {
+      list = list.filter(function (d) {
+        return String(d.driver_id    || '').toLowerCase().includes(search) ||
+               String(d.tipo_veiculo || '').toLowerCase().includes(search);
+      });
+    }
+
+    renderCards(document.getElementById('cards-container'), list);
+  };
+
+  // ── Render cards ──────────────────────────────────────────────────────────────
+  function renderCards(container, drivers) {
+    if (!drivers.length) {
+      container.innerHTML =
+        '<div class="empty-state"><div class="icon">&#x25CB;</div><p>Nenhum motorista encontrado</p></div>';
+      return;
+    }
+    container.innerHTML = drivers.map(buildCard).join('');
   }
-  if (et === 'ARRIVED') {
-    const late    = _computeIsLate(d, d.clicked_at ? new Date(d.clicked_at) : null);
-    const lateTag = late ? `<span class="ofensor-tag ofensor-driver">Atrasado</span>` : '';
-    return `<div class="action-group">
-      <span class="badge badge-arrived">✓ Chegou</span>
-      ${lateTag}
-      <button class="btn-undo" data-action="undo" data-idx="${idx}">desfazer</button>
-    </div>`;
-  }
-  if (et === 'NOT_USED_CORRETO') {
-    return `<div class="action-group">
-      <span class="badge badge-nuc">Não chegou</span>
-      <span class="ofensor-tag ofensor-op">Operação</span>
-      <button class="btn-undo" data-action="undo" data-idx="${idx}">desfazer</button>
-    </div>`;
-  }
-  if (et === 'NOT_USED_INCORRETO') {
-    return `<div class="action-group">
-      <span class="badge badge-nui">⚠ NUI</span>
-      <span class="ofensor-tag ofensor-driver">Driver</span>
-      <button class="btn-undo" data-action="undo" data-idx="${idx}">desfazer</button>
-    </div>`;
-  }
-  return '—';
-}
 
-// ─── Lógica de atraso ─────────────────────────────────────────────────────────
-function _computeIsLate(driver, atTime = null) {
-  const etaDate = driver.data_eta;
-  const etaTime = driver.horario_chegada || driver.eta_planejado_operacao;
-  if (!etaDate || !etaTime) return false;
-  try {
-    const eta = new Date(`${etaDate}T${etaTime}`);
-    const t   = atTime || new Date();
-    return !isNaN(eta.getTime()) && t > eta;
-  } catch { return false; }
-}
+  function buildCard(d) {
+    var et       = d.event_type;
+    var driverId = escHtml(String(d.driver_id || ''));
+    var etaTime  = formatTime(d.horario_chegada || d.eta_planejado_operacao);
+    var now      = new Date();
+    var isPast   = computeIsLate(d, now);
+    var deltaStr = computeDelta(d, now);
 
-// ─── Eventos ──────────────────────────────────────────────────────────────────
-async function markArrived(driver) {
-  const late     = _computeIsLate(driver);          // compara ETA com agora (timezone local)
-  const offender = late ? 'DRIVER' : null;
-  const ok = await postEvent(String(driver.driver_id), 'ARRIVED',
+    var cardClass = et === 'ARRIVED'            ? 'driver-card arrived'
+                  : et === 'NOT_USED_INCORRETO' ? 'driver-card nui'
+                  : et === 'NOT_USED_CORRETO'   ? 'driver-card not-used'
+                  : 'driver-card';
+
+    var etaTimeClass = et ? '' : (isPast ? 'eta-time past' : 'eta-time');
+    var deltaHtml    = (!et && deltaStr)
+      ? '<span class="eta-delta ' + (isPast ? 'past' : 'early') + '">' + escHtml(deltaStr) + '</span>'
+      : '';
+
+    var svcHtml = d.svc
+      ? '<span class="meta-chip">' + escHtml(String(d.svc)) + '</span>'
+      : '';
+    var regionalHtml = d.regional
+      ? '<span class="meta-chip">' + escHtml(String(d.regional)) + '</span>'
+      : '';
+
+    return '<div class="' + cardClass + '" id="card-' + driverId + '">' +
+      '<div class="card-top">' +
+        '<div>' +
+          '<div class="card-id">' + driverId + '</div>' +
+          '<div class="card-secondary">' + vehicleToBadge(d.tipo_veiculo) + '</div>' +
+        '</div>' +
+        '<div>' + statusBadge(et) + '</div>' +
+      '</div>' +
+      '<div class="card-eta">' +
+        '<span class="eta-icon">&#x23F0;</span>' +
+        '<div>' +
+          '<div class="eta-label">ETA previsto</div>' +
+          '<div class="' + etaTimeClass + '">' + escHtml(etaTime) + '</div>' +
+        '</div>' +
+        deltaHtml +
+      '</div>' +
+      (svcHtml || regionalHtml
+        ? '<div class="card-meta">' + svcHtml + regionalHtml + '</div>'
+        : '') +
+      '<div class="card-actions">' + buildActions(d) + '</div>' +
+    '</div>';
+  }
+
+  function buildActions(d) {
+    var idx = d._idx;
+    var et  = d.event_type;
+
+    if (!et) {
+      return '<button class="btn-arrived" onclick="markArrived(' + idx + ')">&#x2713; Chegou</button>' +
+             '<button class="btn-not-arrived" onclick="markNotArrived(' + idx + ')">Nao chegou</button>';
+    }
+    if (et === 'ARRIVED') {
+      var lateTag = computeIsLate(d, d.clicked_at ? new Date(d.clicked_at) : null)
+        ? '<span class="ofensor-tag ofensor-driver">Atrasado</span>' : '';
+      return '<div class="event-confirmed">' +
+        '<div class="event-label"><span class="badge badge-arrived">&#x2713; Chegou</span>' + lateTag + '</div>' +
+        '<button class="btn-undo" onclick="undoEvent(' + idx + ')">desfazer</button>' +
+      '</div>';
+    }
+    if (et === 'NOT_USED_CORRETO') {
+      return '<div class="event-confirmed">' +
+        '<div class="event-label"><span class="badge badge-nuc">Nao chegou</span><span class="ofensor-tag ofensor-op">Operacao</span></div>' +
+        '<button class="btn-undo" onclick="undoEvent(' + idx + ')">desfazer</button>' +
+      '</div>';
+    }
+    if (et === 'NOT_USED_INCORRETO') {
+      return '<div class="event-confirmed">' +
+        '<div class="event-label"><span class="badge badge-nui">&#x26A0; NUI</span><span class="ofensor-tag ofensor-driver">Driver</span></div>' +
+        '<button class="btn-undo" onclick="undoEvent(' + idx + ')">desfazer</button>' +
+      '</div>';
+    }
+    return '';
+  }
+
+  // ── Events ────────────────────────────────────────────────────────────────────
+  window.markArrived = async function (idx) {
+    var driver   = allDrivers[idx];
+    if (!driver) return;
+    var late     = computeIsLate(driver, null);
+    var offender = late ? 'DRIVER' : null;
+    var ok = await postEvent(String(driver.driver_id), 'ARRIVED',
                              driver.horario_chegada, driver.data_eta, offender);
-  if (ok) {
-    driver.event_type = 'ARRIVED';
-    driver.clicked_at = new Date().toISOString();
-    refresh();
-  }
-}
+    if (ok) {
+      driver.event_type = 'ARRIVED';
+      driver.clicked_at = new Date().toISOString();
+      refresh();
+      if (modalDriver && String(modalDriver.driver_id) === String(driver.driver_id)) {
+        showDriverModal(driver);
+      }
+    }
+  };
 
-async function markNotArrived(driver) {
-  const eventType = computeNotUsedType(driver);
-  if (eventType === 'NOT_USED_INCORRETO') {
-    const etaStr = driver.horario_chegada || driver.eta_planejado_operacao || 'N/A';
-    const ok = confirm(
-      `⚠ Atenção — Registro NUI\n\nO ETA deste driver é ${etaStr} e ainda não chegou.\n\nMarcar como "Não chegou" antes do ETA será salvo como NUI Incorreto e ficará visível para o administrador.\n\nDeseja continuar?`
-    );
-    if (!ok) return;
-  }
-  const offender = eventType === 'NOT_USED_INCORRETO' ? 'DRIVER' : 'OPERATION';
-  const posted = await postEvent(String(driver.driver_id), eventType,
-                                 driver.horario_chegada, driver.data_eta, offender);
-  if (posted) { driver.event_type = eventType; refresh(); }
-}
+  window.markNotArrived = async function (idx) {
+    var driver    = allDrivers[idx];
+    if (!driver) return;
+    var eventType = computeNotUsedType(driver);
+    if (eventType === 'NOT_USED_INCORRETO') {
+      var eta = driver.horario_chegada || driver.eta_planejado_operacao || 'N/A';
+      if (!confirm('Atencao: o ETA deste driver e ' + eta + ' e ainda nao chegou.\n\nMarcar agora sera salvo como NUI. Continuar?')) return;
+    }
+    var offender = eventType === 'NOT_USED_INCORRETO' ? 'DRIVER' : 'OPERATION';
+    var ok = await postEvent(String(driver.driver_id), eventType,
+                             driver.horario_chegada, driver.data_eta, offender);
+    if (ok) {
+      driver.event_type = eventType;
+      refresh();
+      if (modalDriver && String(modalDriver.driver_id) === String(driver.driver_id)) {
+        showDriverModal(driver);
+      }
+    }
+  };
 
-async function undoEvent(driver) {
-  try {
-    const res = await fetch('/event', {
-      method:  'DELETE',
-      headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ facility, driver_id: String(driver.driver_id), email: userEmail })
+  window.undoEvent = async function (idx) {
+    var driver = allDrivers[idx];
+    if (!driver) return;
+    try {
+      var res = await fetch('/event', {
+        method:  'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ facility: facility, driver_id: String(driver.driver_id), email: userEmail })
+      });
+      if (!res.ok) return;
+      driver.event_type = null;
+      driver.clicked_at = null;
+      refresh();
+      if (modalDriver && String(modalDriver.driver_id) === String(driver.driver_id)) {
+        closeModal();
+      }
+    } catch (_) {}
+  };
+
+  async function postEvent(driverId, eventType, etaTime, etaDate, offender) {
+    try {
+      var res = await fetch('/event', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({
+          facility:   facility,
+          driver_id:  String(driverId),
+          event_type: eventType,
+          email:      userEmail,
+          eta_time:   etaTime  || null,
+          eta_date:   etaDate  || null,
+          offender:   offender || null
+        })
+      });
+      return res.ok;
+    } catch (_) { return false; }
+  }
+
+  function refresh() { updateStats(); applyFilters(); }
+
+  // ── QR Code ───────────────────────────────────────────────────────────────────
+  window.openQR = function () {
+    var overlay = document.getElementById('qr-overlay');
+    overlay.classList.add('open');
+
+    if (typeof Html5Qrcode === 'undefined') {
+      showToast('Biblioteca de QR nao carregada.');
+      closeQR();
+      return;
+    }
+
+    html5QrCode = new Html5Qrcode('qr-reader');
+    html5QrCode.start(
+      { facingMode: 'environment' },
+      { fps: 10, qrbox: { width: 240, height: 240 }, aspectRatio: 1.0 },
+      onQRScan,
+      function (_err) {}
+    ).catch(function (err) {
+      showToast('Camera nao disponivel');
+      closeQR();
     });
-    if (!res.ok) return;
-    driver.event_type = null;
-    driver.clicked_at = null;
-    refresh();
-  } catch (err) {
-    console.error('Erro ao desfazer:', err);
-  }
-}
+  };
 
-async function postEvent(driverId, eventType, etaTime, etaDate, offender = null) {
-  try {
-    const res = await fetch('/event', {
-      method:  'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({
-        facility,
-        driver_id:  String(driverId),
-        event_type: eventType,
-        email:      userEmail,
-        eta_time:   etaTime  || null,
-        eta_date:   etaDate  || null,
-        offender:   offender
-      })
+  window.closeQR = function () {
+    var overlay = document.getElementById('qr-overlay');
+    overlay.classList.remove('open');
+    if (html5QrCode) {
+      html5QrCode.stop().catch(function () {});
+      html5QrCode = null;
+    }
+  };
+
+  function onQRScan(decodedText) {
+    closeQR();
+
+    // Treat QR result as untrusted external input — validate before use
+    var raw = String(decodedText || '').trim();
+    if (!raw || raw.length > 50) {
+      showToast('QR code invalido');
+      return;
+    }
+    // Allow only alphanumeric + underscore/hyphen (typical driver IDs)
+    if (!/^[\w\-]+$/.test(raw)) {
+      showToast('QR code invalido');
+      return;
+    }
+
+    var driver = allDrivers.find(function (d) { return String(d.driver_id) === raw; });
+    if (driver) {
+      showDriverModal(driver);
+    } else {
+      showToast('Driver nao encontrado: ' + escHtml(raw));
+    }
+  }
+
+  // ── Driver modal ──────────────────────────────────────────────────────────────
+  function showDriverModal(driver) {
+    modalDriver = driver;
+    var modal   = document.getElementById('driver-modal');
+    var content = document.getElementById('modal-content');
+
+    var et      = driver.event_type;
+    var etaTime = formatTime(driver.horario_chegada || driver.eta_planejado_operacao);
+    var id      = escHtml(String(driver.driver_id || ''));
+    var vehicle = escHtml(String(driver.tipo_veiculo || '—'));
+    var idx     = driver._idx;
+
+    var actionsHtml = '';
+    if (!et) {
+      actionsHtml =
+        '<button class="modal-btn-arrived" onclick="markArrived(' + idx + ')">&#x2713; Chegou</button>' +
+        '<button class="modal-btn-not-arrived" onclick="markNotArrived(' + idx + ')">Nao chegou</button>';
+    } else if (et === 'ARRIVED') {
+      actionsHtml =
+        '<div class="modal-confirmed">' +
+          '<div class="modal-confirmed-icon">&#x2705;</div>' +
+          '<div class="modal-confirmed-text">Chegada confirmada</div>' +
+        '</div>' +
+        '<button class="modal-btn-undo" onclick="undoEvent(' + idx + ')">Desfazer</button>';
+    } else {
+      var label = et === 'NOT_USED_INCORRETO' ? '&#x26A0; NUI — Driver' : 'Nao chegou — Operacao';
+      actionsHtml =
+        '<div class="modal-confirmed">' +
+          '<div class="modal-confirmed-icon">&#x274C;</div>' +
+          '<div class="modal-confirmed-text">' + label + '</div>' +
+        '</div>' +
+        '<button class="modal-btn-undo" onclick="undoEvent(' + idx + ')">Desfazer</button>';
+    }
+
+    content.innerHTML =
+      '<div class="modal-driver-id">' + id + '</div>' +
+      '<div class="modal-vehicle">' + vehicleToBadge(driver.tipo_veiculo) + ' ' + vehicle + '</div>' +
+      '<div class="modal-eta-block">' +
+        '<div class="modal-eta-label">ETA previsto</div>' +
+        '<div class="modal-eta-time">' + escHtml(etaTime) + '</div>' +
+      '</div>' +
+      '<div class="modal-actions">' + actionsHtml + '</div>';
+
+    modal.classList.add('open');
+  }
+
+  window.closeModal = function () {
+    document.getElementById('driver-modal').classList.remove('open');
+    modalDriver = null;
+  };
+
+  // ── ETA helpers ───────────────────────────────────────────────────────────────
+  function computeIsLate(driver, atTime) {
+    var etaDate = driver.data_eta;
+    var etaTime = driver.horario_chegada || driver.eta_planejado_operacao;
+    if (!etaDate || !etaTime) return false;
+    try {
+      var eta = new Date(etaDate + 'T' + etaTime);
+      var t   = atTime || new Date();
+      return !isNaN(eta.getTime()) && t > eta;
+    } catch (_) { return false; }
+  }
+
+  function computeNotUsedType(driver) {
+    var etaDate = driver.data_eta;
+    var etaTime = driver.horario_chegada || driver.eta_planejado_operacao;
+    if (!etaDate || !etaTime) return 'NOT_USED_CORRETO';
+    try {
+      var eta = new Date(etaDate + 'T' + etaTime);
+      if (isNaN(eta.getTime())) return 'NOT_USED_CORRETO';
+      return new Date() < eta ? 'NOT_USED_INCORRETO' : 'NOT_USED_CORRETO';
+    } catch (_) { return 'NOT_USED_CORRETO'; }
+  }
+
+  function computeDelta(driver, now) {
+    var etaDate = driver.data_eta;
+    var etaTime = driver.horario_chegada || driver.eta_planejado_operacao;
+    if (!etaDate || !etaTime || driver.event_type) return '';
+    try {
+      var eta      = new Date(etaDate + 'T' + etaTime);
+      if (isNaN(eta.getTime())) return '';
+      var diffMin  = Math.round((eta.getTime() - now.getTime()) / 60000);
+      if (diffMin > 0)  return '+' + diffMin + 'min';
+      if (diffMin < 0)  return diffMin + 'min';
+      return 'agora';
+    } catch (_) { return ''; }
+  }
+
+  function formatTime(raw) {
+    if (!raw) return '—';
+    var parts = String(raw).split(':');
+    if (parts.length >= 2) return parts[0] + ':' + parts[1];
+    return String(raw);
+  }
+
+  // ── Toast ─────────────────────────────────────────────────────────────────────
+  var _toastTimer = null;
+  function showToast(msg) {
+    var el = document.getElementById('toast');
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'toast';
+      el.className = 'toast';
+      document.body.appendChild(el);
+    }
+    el.textContent = msg;
+    el.classList.add('show');
+    clearTimeout(_toastTimer);
+    _toastTimer = setTimeout(function () { el.classList.remove('show'); }, 2800);
+  }
+
+  // ── Render helpers ────────────────────────────────────────────────────────────
+  function vehicleToBadge(desc) {
+    var s = String(desc || '').toLowerCase();
+    if (s.includes('moto'))                                    return '<span class="badge badge-moto">&#x1F3CD; Moto</span>';
+    if (s.includes('carro') || s.includes('passeio') || s.includes('car')) return '<span class="badge badge-carro">&#x1F697; Carro</span>';
+    if (s.includes('walker') || s.includes('pedestre'))        return '<span class="badge badge-walker">&#x1F6B6; Walker</span>';
+    if (desc) return '<span class="badge badge-other">' + escHtml(String(desc)) + '</span>';
+    return '';
+  }
+
+  function statusBadge(et) {
+    if (!et)                      return '<span class="badge badge-pending">Pendente</span>';
+    if (et === 'ARRIVED')         return '<span class="badge badge-arrived">&#x2713; Chegou</span>';
+    if (et === 'NOT_USED_CORRETO')   return '<span class="badge badge-nuc">Ausente</span>';
+    if (et === 'NOT_USED_INCORRETO') return '<span class="badge badge-nui">&#x26A0; NUI</span>';
+    return '';
+  }
+
+  function renderSkeleton(container) {
+    container.innerHTML = [1,2,3,4,5].map(function () {
+      return '<div class="skeleton-card">' +
+        '<div class="skeleton-bar" style="width:55%;margin-bottom:14px"></div>' +
+        '<div class="skeleton-bar" style="width:80%;height:48px;border-radius:10px;margin-bottom:14px"></div>' +
+        '<div style="display:flex;gap:8px">' +
+          '<div class="skeleton-bar" style="flex:1;height:48px;border-radius:10px;margin:0"></div>' +
+          '<div class="skeleton-bar" style="flex:1;height:48px;border-radius:10px;margin:0"></div>' +
+        '</div></div>';
+    }).join('');
+  }
+
+  function renderError(container, msg) {
+    container.innerHTML = '<div class="empty-state"><div class="icon">&#x26A0;</div><p>' + escHtml(msg) + '</p></div>';
+  }
+
+  function escHtml(str) {
+    return String(str == null ? '' : str).replace(/[&<>"']/g, function (c) {
+      return ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;' })[c];
     });
-    return res.ok;
-  } catch { return false; }
-}
-
-function refresh() {
-  updateStats();
-  applyFilters();
-}
-
-// ─── Lógica ETA ───────────────────────────────────────────────────────────────
-function computeNotUsedType(driver) {
-  const etaDate = driver.data_eta;
-  const etaTime = driver.horario_chegada || driver.eta_planejado_operacao;
-
-  if (!etaDate || !etaTime) return 'NOT_USED_CORRETO';
-
-  try {
-    // etaTime formato HH:MM:SS, etaDate formato YYYY-MM-DD
-    const etaDateTime = new Date(`${etaDate}T${etaTime}`);
-    if (isNaN(etaDateTime.getTime())) return 'NOT_USED_CORRETO';
-    return new Date() < etaDateTime ? 'NOT_USED_INCORRETO' : 'NOT_USED_CORRETO';
-  } catch {
-    return 'NOT_USED_CORRETO';
   }
-}
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-function vehicleToBadge(desc) {
-  const s = String(desc || '').toLowerCase();
-  if (s.includes('moto'))
-    return `<span class="badge badge-moto">Moto</span>`;
-  if (s.includes('carro') || s.includes('passeio') || s.includes('car'))
-    return `<span class="badge badge-carro">Carro</span>`;
-  if (s.includes('walker') || s.includes('pedestre'))
-    return `<span class="badge badge-walker">Walker</span>`;
-  return `<span class="badge badge-other">${escHtml(desc || '—')}</span>`;
-}
-
-function statusToDot(status) {
-  const s = String(status || '').toUpperCase();
-  if (s.includes('ACTIVE') || s.includes('ATIVO'))
-    return `<span class="status-dot dot-active"></span>`;
-  if (s.includes('PEND'))
-    return `<span class="status-dot dot-pending"></span>`;
-  if (s.includes('CANCEL'))
-    return `<span class="status-dot dot-cancelled"></span>`;
-  return `<span class="status-dot dot-unknown"></span>`;
-}
-
-function escHtml(str) {
-  return String(str ?? '').replace(/[&<>"']/g, c =>
-    ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;' }[c])
-  );
-}
-
-function renderSkeleton(tbody) {
-  tbody.innerHTML = Array(8).fill(0).map(() => `
-    <tr class="skeleton-row">
-      ${Array(8).fill(0).map(() =>
-        `<td><div class="skeleton-bar" style="width:${40 + Math.floor(Math.random()*50)}px"></div></td>`
-      ).join('')}
-    </tr>`).join('');
-}
-
-function renderError(tbody, msg) {
-  tbody.innerHTML = `<tr><td colspan="8">
-    <div class="empty-state">
-      <div class="icon">⚠</div>
-      <p style="color:var(--red)">${escHtml(msg)}</p>
-    </div></td></tr>`;
-}
+})();
