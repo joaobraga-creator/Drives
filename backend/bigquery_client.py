@@ -38,20 +38,22 @@ def _get_client() -> bigquery.Client:
 # ─── Auth ────────────────────────────────────────────────────────────────────
 
 AUTH_SQL = """
-SELECT DISTINCT PLC_PLACE_FACILITY AS facility
+SELECT DISTINCT
+    PLC_PLACE_FACILITY AS facility,
+    PLC_PLACE_NOME     AS place_name
 FROM `meli-bi-data.WHOWNER.BT_CARTEIRA_MLB`
 WHERE LOWER(PLC_PLACE_EMAIL) = LOWER(@email)
 LIMIT 1
 """
 
-def get_facility_by_email(email: str) -> str | None:
+def get_facility_by_email(email: str) -> dict | None:
     client = _get_client()
     job_config = bigquery.QueryJobConfig(
         query_parameters=[bigquery.ScalarQueryParameter("email", "STRING", email)]
     )
     rows = list(client.query(AUTH_SQL, job_config=job_config).result())
     if rows:
-        return rows[0].facility
+        return {"facility": rows[0].facility, "place_name": rows[0].place_name}
     return None
 
 

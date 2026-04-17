@@ -89,8 +89,9 @@
             return;
           }
 
-          sessionStorage.setItem('notused_email',    data.email);
-          sessionStorage.setItem('notused_facility', data.facility || '');
+          sessionStorage.setItem('notused_email',      data.email);
+          sessionStorage.setItem('notused_facility',   data.facility   || '');
+          sessionStorage.setItem('notused_place_name', data.place_name || '');
 
           window.location.replace('dashboard.html');
 

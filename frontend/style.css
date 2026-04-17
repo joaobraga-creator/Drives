@@ -189,6 +189,18 @@ body {
   letter-spacing: 0.3px;
 }
 
+.header-place-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+  opacity: 0.75;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 160px;
+}
+@media (max-width: 420px) { .header-place-name { display: none; } }
+
 .btn-logout {
   background: rgba(255,255,255,0.9);
   border: none;

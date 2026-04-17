@@ -2,8 +2,9 @@
   'use strict';
 
   // ── Auth guard ────────────────────────────────────────────────────────────────
-  const facility  = sessionStorage.getItem('notused_facility') || '';
-  const userEmail = sessionStorage.getItem('notused_email')    || '';
+  const facility   = sessionStorage.getItem('notused_facility')   || '';
+  const userEmail  = sessionStorage.getItem('notused_email')      || '';
+  const placeName  = sessionStorage.getItem('notused_place_name') || '';
 
   if (!facility) { window.location.replace('index.html'); return; }
 
@@ -17,6 +18,8 @@
   document.addEventListener('DOMContentLoaded', function () {
     const facilityEl = document.getElementById('header-facility');
     if (facilityEl) facilityEl.textContent = facility;
+    const placeNameEl = document.getElementById('header-place-name');
+    if (placeNameEl && placeName) placeNameEl.textContent = placeName;
     loadDrivers();
   });
 

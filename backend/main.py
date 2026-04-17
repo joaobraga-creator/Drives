@@ -87,10 +87,10 @@ def auth_by_email(req: EmailRequest):
     if _is_admin(email):
         return {"facility": None, "email": email, "is_admin": True}
 
-    facility = bq.get_facility_by_email(email)
-    if not facility:
+    result = bq.get_facility_by_email(email)
+    if not result:
         raise HTTPException(status_code=404, detail="Nenhum facility encontrado para este email.")
-    return {"facility": facility, "email": email, "is_admin": False}
+    return {"facility": result["facility"], "place_name": result.get("place_name"), "email": email, "is_admin": False}
 
 
 _FACILITY_RE = re.compile(r'^[A-Z0-9_\-]{1,30}$')
