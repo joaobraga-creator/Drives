@@ -140,22 +140,8 @@
   }
 
   function buildCard(d) {
-    var et       = d.event_type;
     var driverId = escHtml(String(d.driver_id || ''));
     var etaTime  = formatTime(d.horario_chegada || d.eta_planejado_operacao);
-    var now      = new Date();
-    var isPast   = computeIsLate(d, now);
-    var deltaStr = computeDelta(d, now);
-
-    var cardClass = et === 'ARRIVED'            ? 'driver-card arrived'
-                  : et === 'NOT_USED_INCORRETO' ? 'driver-card nui'
-                  : et === 'NOT_USED_CORRETO'   ? 'driver-card not-used'
-                  : 'driver-card';
-
-    var etaTimeClass = et ? '' : (isPast ? 'eta-time past' : 'eta-time');
-    var deltaHtml    = (!et && deltaStr)
-      ? '<span class="eta-delta ' + (isPast ? 'past' : 'early') + '">' + escHtml(deltaStr) + '</span>'
-      : '';
 
     var svcHtml = d.svc
       ? '<span class="meta-chip">' + escHtml(String(d.svc)) + '</span>'
@@ -164,21 +150,17 @@
       ? '<span class="meta-chip">' + escHtml(String(d.regional)) + '</span>'
       : '';
 
-    return '<div class="' + cardClass + '" id="card-' + driverId + '">' +
+    return '<div class="driver-card" id="card-' + driverId + '">' +
       '<div class="card-top">' +
-        '<div>' +
-          '<div class="card-id">' + driverId + '</div>' +
-          '<div class="card-secondary">' + vehicleToBadge(d.tipo_veiculo) + '</div>' +
-        '</div>' +
-        '<div>' + statusBadge(et) + '</div>' +
+        '<div class="card-id">' + driverId + '</div>' +
+        vehicleToBadge(d.tipo_veiculo) +
       '</div>' +
       '<div class="card-eta">' +
         '<span class="eta-icon">&#x23F0;</span>' +
         '<div>' +
           '<div class="eta-label">ETA previsto</div>' +
-          '<div class="' + etaTimeClass + '">' + escHtml(etaTime) + '</div>' +
+          '<div class="eta-time">' + escHtml(etaTime) + '</div>' +
         '</div>' +
-        deltaHtml +
       '</div>' +
       (svcHtml || regionalHtml
         ? '<div class="card-meta">' + svcHtml + regionalHtml + '</div>'
