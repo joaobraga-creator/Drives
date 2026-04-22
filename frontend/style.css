@@ -30,7 +30,7 @@
   --shadow:        0 2px 12px rgba(0,0,0,0.10);
   --shadow-lg:     0 8px 32px rgba(0,0,0,0.14);
   --header-h:      56px;
-  --datebar-h:     44px;
+  --datebar-h:     56px;
   --toolbar-h:     52px;
 }
 
@@ -232,48 +232,51 @@ body {
   justify-content: space-between;
   padding: 0 16px;
   z-index: 99;
+  gap: 12px;
 }
 
 .info-bar-date {
   display: flex;
   align-items: center;
-  gap: 8px;
-  color: var(--muted);
-  font-size: 13px;
+  gap: 6px;
+  flex-shrink: 0;
 }
-.info-bar-date label { cursor: pointer; }
-.info-bar-date label i { color: var(--blue); }
+.info-bar-date i { color: var(--blue); font-size: 14px; }
 
 #date-input {
-  border: none;
-  background: none;
+  border: 1.5px solid var(--border);
+  background: var(--bg);
+  border-radius: var(--radius-xs);
   font-family: var(--sans);
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
   color: var(--text);
   outline: none;
   cursor: pointer;
-  padding: 0;
-  width: auto;
+  padding: 5px 8px;
+  height: 34px;
 }
-#date-input::-webkit-calendar-picker-indicator { cursor: pointer; opacity: 0.6; margin-left: 2px; }
+#date-input:focus { border-color: var(--blue); }
+#date-input::-webkit-calendar-picker-indicator { cursor: pointer; }
 
 .info-bar-stats {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 0;
+  flex-shrink: 0;
 }
 
 .info-stat {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0;
+  padding: 0 14px;
 }
-.info-num { font-size: 18px; font-weight: 800; line-height: 1.1; letter-spacing: -0.5px; }
-.info-lbl { font-size: 9px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.4px; }
+.info-stat:first-child { padding-left: 0; }
+.info-num { font-size: 20px; font-weight: 800; line-height: 1; letter-spacing: -0.5px; }
+.info-lbl { font-size: 9px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-top: 1px; }
 
-.info-divider { width: 1px; height: 28px; background: var(--border); }
+.info-divider { width: 1px; height: 32px; background: var(--border); }
 
 /* ── Toolbar ────────────────────────────────────────────────────────────────── */
 

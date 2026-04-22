@@ -58,22 +58,43 @@
     icon.textContent = '↺';
     renderSkeleton(container);
 
-    try {
-      const res  = await fetch('/drivers/' + encodeURIComponent(facility) + '?date=' + encodeURIComponent(selectedDate()));
-      const data = await res.json();
+    var attempt = 0;
+    var maxAttempts = 4;
 
-      if (!res.ok) { renderError(container, data.detail || 'Erro ao carregar.'); return; }
+    while (attempt < maxAttempts) {
+      try {
+        const res  = await fetch('/drivers/' + encodeURIComponent(facility) + '?date=' + encodeURIComponent(selectedDate()));
+        const data = await res.json();
 
-      allDrivers = (data.drivers || []).map(function (d, i) { return Object.assign({}, d, { _idx: i }); });
-      updateStats();
-      applyFilters();
+        if (!res.ok) { renderError(container, data.detail || 'Erro ao carregar.'); break; }
 
-    } catch (_) {
-      renderError(container, 'Erro de conexao. Backend offline?');
-    } finally {
-      btnR.classList.remove('spinning');
+        allDrivers = (data.drivers || []).map(function (d, i) { return Object.assign({}, d, { _idx: i }); });
+        updateStats();
+        applyFilters();
+        break;
+
+      } catch (_) {
+        attempt++;
+        if (attempt >= maxAttempts) {
+          renderError(container, 'Servidor nao responde. Tente novamente em instantes.');
+        } else {
+          renderWaking(container, attempt);
+          await new Promise(function (r) { setTimeout(r, 8000); });
+        }
+      }
     }
+
+    btnR.classList.remove('spinning');
   };
+
+  function renderWaking(container, attempt) {
+    container.innerHTML =
+      '<div class="empty-state">' +
+        '<div class="icon" style="font-size:28px">&#x23F3;</div>' +
+        '<p>Servidor iniciando... (' + attempt + '/3)</p>' +
+        '<p style="font-size:12px;margin-top:4px">Aguarde alguns segundos</p>' +
+      '</div>';
+  }
 
   // ── Stats ─────────────────────────────────────────────────────────────────────
   function updateStats() {
