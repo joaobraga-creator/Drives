@@ -108,7 +108,7 @@ Broadcast_Drivers AS (
     FROM `meli-bi-data.WHOWNER.BT_SHP_CROWD_BROADCAST`
     WHERE SITE_ID = 'MLB'
       AND FACILITY_ID = @facility
-      AND DATE(OFFER_DATE) = @query_date
+      AND DATE(OFFER_DATE, 'America/Sao_Paulo') = @query_date
       AND ACCEPTED_OFFER = TRUE
 ),
 tb1 AS (

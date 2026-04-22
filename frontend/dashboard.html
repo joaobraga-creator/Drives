@@ -27,14 +27,22 @@
     </button>
   </header>
 
-  <!-- ── Date bar ── -->
-  <div class="date-bar">
-    <div class="date-bar-left">
-      <i class="fas fa-calendar-alt date-bar-icon"></i>
-      <input class="date-input" id="date-input" type="date" onchange="onDateChange()" />
+  <!-- ── Info bar: data + contagem ── -->
+  <div class="info-bar">
+    <div class="info-bar-date">
+      <label for="date-input"><i class="fas fa-calendar-alt"></i></label>
+      <input id="date-input" type="date" onchange="onDateChange()" />
     </div>
-    <div class="date-bar-right">
-      <span id="stat-total">—</span> drivers
+    <div class="info-bar-stats">
+      <div class="info-stat">
+        <span class="info-num" id="stat-total">—</span>
+        <span class="info-lbl">Escalados</span>
+      </div>
+      <div class="info-divider"></div>
+      <div class="info-stat">
+        <span class="info-num" id="stat-planned">—</span>
+        <span class="info-lbl">Planejado</span>
+      </div>
     </div>
   </div>
 
@@ -73,7 +81,7 @@
     <p class="qr-hint">Aponte a camera para o QR code do driver</p>
   </div>
 
-  <!-- ── Driver modal (bottom sheet after QR scan) ── -->
+  <!-- ── Driver modal ── -->
   <div class="driver-modal" id="driver-modal" role="dialog" aria-modal="true">
     <div class="modal-backdrop" id="modal-backdrop" onclick="closeModal()"></div>
     <div class="modal-sheet" id="modal-sheet">

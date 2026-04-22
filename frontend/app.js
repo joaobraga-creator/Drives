@@ -77,8 +77,21 @@
 
   // ── Stats ─────────────────────────────────────────────────────────────────────
   function updateStats() {
-    var el = document.getElementById('stat-total');
-    if (el) el.textContent = String(allDrivers.length);
+    var elTotal = document.getElementById('stat-total');
+    if (elTotal) elTotal.textContent = String(allDrivers.length);
+
+    // total_planejado_geral é por (svc, modal) — soma valores únicos
+    var seen = {};
+    var planned = 0;
+    allDrivers.forEach(function (d) {
+      var key = (d.svc || '') + '|' + (d.modal || '');
+      if (!(key in seen)) {
+        seen[key] = true;
+        planned += Number(d.total_planejado_geral) || 0;
+      }
+    });
+    var elPlanned = document.getElementById('stat-planned');
+    if (elPlanned) elPlanned.textContent = planned > 0 ? String(planned) : '—';
   }
 
   function refresh() { updateStats(); applyFilters(); }
