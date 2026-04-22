@@ -2,6 +2,7 @@ import os
 import re
 import logging
 import pathlib
+from datetime import datetime, timezone, timedelta
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
@@ -95,26 +96,46 @@ def auth_by_email(req: EmailRequest):
 
 _FACILITY_RE = re.compile(r'^[A-Z0-9_\-]{1,30}$')
 
+_DATE_RE = re.compile(r'^\d{4}-\d{2}-\d{2}$')
+
+def _today_br() -> str:
+    return datetime.now(timezone(timedelta(hours=-3))).strftime("%Y-%m-%d")
+
 @app.get("/drivers/{facility}")
-def get_drivers(facility: str):
+def get_drivers(facility: str, date: str | None = Query(default=None)):
     if not facility:
         raise HTTPException(status_code=400, detail="Facility é obrigatório.")
     facility_upper = facility.upper()
     if not _FACILITY_RE.match(facility_upper):
         raise HTTPException(status_code=400, detail="Facility inválido.")
-    drivers = bq.get_drivers_by_facility(facility_upper)
-    events  = db.get_events_map(facility_upper)
-    for d in drivers:
-        ev = events.get(str(d.get("driver_id") or ""))
-        if ev:
-            d["event_type"]  = ev["event_type"]
-            d["clicked_at"]  = ev["clicked_at"]
-            d["event_email"] = ev["email"]
-        else:
+    if date:
+        if not _DATE_RE.match(date):
+            raise HTTPException(status_code=400, detail="Data inválida. Use YYYY-MM-DD.")
+        query_date = date
+    else:
+        query_date = _today_br()
+
+    drivers = bq.get_drivers_by_facility(facility_upper, query_date)
+
+    if query_date == _today_br():
+        events = db.get_events_map(facility_upper)
+        for d in drivers:
+            ev = events.get(str(d.get("driver_id") or ""))
+            if ev:
+                d["event_type"]  = ev["event_type"]
+                d["clicked_at"]  = ev["clicked_at"]
+                d["event_email"] = ev["email"]
+            else:
+                d["event_type"]  = None
+                d["clicked_at"]  = None
+                d["event_email"] = None
+    else:
+        for d in drivers:
             d["event_type"]  = None
             d["clicked_at"]  = None
             d["event_email"] = None
-    return {"facility": facility_upper, "total": len(drivers), "drivers": drivers}
+
+    return {"facility": facility_upper, "date": query_date, "total": len(drivers), "drivers": drivers}
 
 
 @app.post("/event")

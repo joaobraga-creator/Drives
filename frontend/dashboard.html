@@ -27,6 +27,17 @@
     </button>
   </header>
 
+  <!-- ── Date bar ── -->
+  <div class="date-bar">
+    <div class="date-bar-left">
+      <i class="fas fa-calendar-alt date-bar-icon"></i>
+      <input class="date-input" id="date-input" type="date" onchange="onDateChange()" />
+    </div>
+    <div class="date-bar-right">
+      <span id="stat-total">—</span> drivers
+    </div>
+  </div>
+
   <!-- ── Toolbar ── -->
   <div class="toolbar">
     <input
@@ -48,9 +59,6 @@
       <span id="refresh-icon">↺</span>
     </button>
   </div>
-
-  <!-- ── Count label ── -->
-  <div class="count-bar"><span id="stat-total">—</span> drivers escalados <span class="count-sep">·</span> <span id="count-date"></span></div>
 
   <!-- ── Cards ── -->
   <main class="cards-container" id="cards-container"></main>

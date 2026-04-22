@@ -18,10 +18,29 @@
     if (facilityEl) facilityEl.textContent = facility;
     const placeNameEl = document.getElementById('header-place-name');
     if (placeNameEl && placeName) placeNameEl.textContent = placeName;
-    const dateEl = document.getElementById('count-date');
-    if (dateEl) dateEl.textContent = new Date().toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric' });
+
+    // Set date picker to today (Brazil time UTC-3)
+    const dateInput = document.getElementById('date-input');
+    if (dateInput) {
+      dateInput.value = todayBR();
+      dateInput.max   = todayBR();
+    }
     loadDrivers();
   });
+
+  function todayBR() {
+    var d = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
+    var mm = String(d.getMonth() + 1).padStart(2, '0');
+    var dd = String(d.getDate()).padStart(2, '0');
+    return d.getFullYear() + '-' + mm + '-' + dd;
+  }
+
+  function selectedDate() {
+    var el = document.getElementById('date-input');
+    return (el && el.value) ? el.value : todayBR();
+  }
+
+  window.onDateChange = function () { loadDrivers(); };
 
   // ── Logout ────────────────────────────────────────────────────────────────────
   window.logout = function () {
@@ -40,7 +59,7 @@
     renderSkeleton(container);
 
     try {
-      const res  = await fetch('/drivers/' + encodeURIComponent(facility));
+      const res  = await fetch('/drivers/' + encodeURIComponent(facility) + '?date=' + encodeURIComponent(selectedDate()));
       const data = await res.json();
 
       if (!res.ok) { renderError(container, data.detail || 'Erro ao carregar.'); return; }
@@ -61,6 +80,8 @@
     var el = document.getElementById('stat-total');
     if (el) el.textContent = String(allDrivers.length);
   }
+
+  function refresh() { updateStats(); applyFilters(); }
 
   // ── Search ────────────────────────────────────────────────────────────────────
   window.applyFilters = function () {
