@@ -8,9 +8,8 @@
   if (!facility) { window.location.replace('index.html'); return; }
 
   // ── State ─────────────────────────────────────────────────────────────────────
-  let allDrivers   = [];
-  let activeFilter = 'todos';
-  let modalDriver  = null;
+  let allDrivers  = [];
+  let modalDriver = null;
   let html5QrCode  = null;
 
   // ── Init ──────────────────────────────────────────────────────────────────────
@@ -19,6 +18,8 @@
     if (facilityEl) facilityEl.textContent = facility;
     const placeNameEl = document.getElementById('header-place-name');
     if (placeNameEl && placeName) placeNameEl.textContent = placeName;
+    const dateEl = document.getElementById('count-date');
+    if (dateEl) dateEl.textContent = new Date().toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric' });
     loadDrivers();
   });
 
@@ -57,57 +58,19 @@
 
   // ── Stats ─────────────────────────────────────────────────────────────────────
   function updateStats() {
-    const total   = allDrivers.length;
-    const arrived = allDrivers.filter(function (d) { return d.event_type === 'ARRIVED'; }).length;
-    const absent  = allDrivers.filter(function (d) {
-      return d.event_type === 'NOT_USED_CORRETO' || d.event_type === 'NOT_USED_INCORRETO';
-    }).length;
-    const pending = total - arrived - absent;
-
-    setText('stat-total',     total);
-    setText('stat-arrived',   arrived);
-    setText('stat-pendentes', pending);
-    setText('stat-nao-chegou', absent);
+    var el = document.getElementById('stat-total');
+    if (el) el.textContent = String(allDrivers.length);
   }
 
-  function setText(id, val) {
-    var el = document.getElementById(id);
-    if (el) el.textContent = String(val);
-  }
-
-  // ── Filters ───────────────────────────────────────────────────────────────────
-  window.setFilter = function (filter, btn) {
-    activeFilter = filter;
-
-    document.querySelectorAll('.tab').forEach(function (t) { t.classList.remove('active'); });
-    document.querySelectorAll('.stat-pill').forEach(function (p) { p.classList.remove('active'); });
-
-    if (btn) {
-      btn.classList.add('active');
-      var matchingPill = document.querySelector('.stat-pill[data-filter="' + filter + '"]');
-      if (matchingPill) matchingPill.classList.add('active');
-    }
-
-    applyFilters();
-  };
-
+  // ── Search ────────────────────────────────────────────────────────────────────
   window.applyFilters = function () {
     var search = (document.getElementById('search-input').value || '').toLowerCase().trim();
-    var list   = allDrivers.slice();
-
-    if (activeFilter === 'pendentes')  list = list.filter(function (d) { return !d.event_type; });
-    if (activeFilter === 'arrived')    list = list.filter(function (d) { return d.event_type === 'ARRIVED'; });
-    if (activeFilter === 'nao-chegou') list = list.filter(function (d) {
-      return d.event_type === 'NOT_USED_CORRETO' || d.event_type === 'NOT_USED_INCORRETO';
-    });
-
-    if (search) {
-      list = list.filter(function (d) {
-        return String(d.driver_id    || '').toLowerCase().includes(search) ||
-               String(d.tipo_veiculo || '').toLowerCase().includes(search);
-      });
-    }
-
+    var list   = search
+      ? allDrivers.filter(function (d) {
+          return String(d.driver_id    || '').toLowerCase().includes(search) ||
+                 String(d.tipo_veiculo || '').toLowerCase().includes(search);
+        })
+      : allDrivers.slice();
     renderCards(document.getElementById('cards-container'), list);
   };
 

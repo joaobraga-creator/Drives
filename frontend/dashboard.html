@@ -27,26 +27,6 @@
     </button>
   </header>
 
-  <!-- ── Stats strip ── -->
-  <div class="stats-strip">
-    <div class="stat-pill" data-filter="todos" onclick="setFilter('todos', this)">
-      <span class="stat-num" id="stat-total">—</span>
-      <span class="stat-lbl">Total</span>
-    </div>
-    <div class="stat-pill green" data-filter="arrived" onclick="setFilter('arrived', this)">
-      <span class="stat-num" id="stat-arrived">—</span>
-      <span class="stat-lbl">Chegaram</span>
-    </div>
-    <div class="stat-pill blue" data-filter="pendentes" onclick="setFilter('pendentes', this)">
-      <span class="stat-num" id="stat-pendentes">—</span>
-      <span class="stat-lbl">Pendentes</span>
-    </div>
-    <div class="stat-pill red" data-filter="nao-chegou" onclick="setFilter('nao-chegou', this)">
-      <span class="stat-num" id="stat-nao-chegou">—</span>
-      <span class="stat-lbl">Ausentes</span>
-    </div>
-  </div>
-
   <!-- ── Toolbar ── -->
   <div class="toolbar">
     <input
@@ -69,13 +49,8 @@
     </button>
   </div>
 
-  <!-- ── Filter tabs ── -->
-  <div class="filter-tabs">
-    <button class="tab active" onclick="setFilter('todos', this)"><i class="fas fa-list"></i> Todos</button>
-    <button class="tab" onclick="setFilter('pendentes', this)"><i class="fas fa-clock"></i> Pendentes</button>
-    <button class="tab" onclick="setFilter('arrived', this)"><i class="fas fa-check-circle"></i> Chegaram</button>
-    <button class="tab" onclick="setFilter('nao-chegou', this)"><i class="fas fa-times-circle"></i> Ausentes</button>
-  </div>
+  <!-- ── Count label ── -->
+  <div class="count-bar"><span id="stat-total">—</span> drivers escalados <span class="count-sep">·</span> <span id="count-date"></span></div>
 
   <!-- ── Cards ── -->
   <main class="cards-container" id="cards-container"></main>
