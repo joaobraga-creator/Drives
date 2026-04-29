@@ -108,7 +108,7 @@ Broadcast_Drivers AS (
     FROM `meli-bi-data.WHOWNER.BT_SHP_CROWD_BROADCAST`
     WHERE SITE_ID = 'MLB'
       AND FACILITY_ID = @facility
-      AND DATE(OFFER_DATE) = @query_date
+      AND DATE(OFFER_DATE) = DATE(@query_date)
       AND ACCEPTED_OFFER = TRUE
 ),
 tb1 AS (
@@ -167,7 +167,7 @@ def get_drivers_by_facility(facility: str, query_date: str) -> list[dict]:
     job_config = bigquery.QueryJobConfig(
         query_parameters=[
             bigquery.ScalarQueryParameter("facility",   "STRING", facility),
-            bigquery.ScalarQueryParameter("query_date", "DATE",   query_date),
+            bigquery.ScalarQueryParameter("query_date", "STRING", query_date),
         ]
     )
     rows = client.query(DRIVERS_SQL, job_config=job_config).result()
